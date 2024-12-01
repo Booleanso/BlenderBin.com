@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { User } from 'firebase/auth';
-import { auth } from '../lib/firebase-client';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import Link from 'next/link';
 
@@ -12,7 +10,6 @@ interface FileSection {
 }
 
 export default function LibraryPage() {
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<FileSection>({
     premium: [],
@@ -21,45 +18,36 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
     const fetchFiles = async () => {
-      if (user) {
-        try {
-          // Fetch premium addons
-          const premiumResponse = await fetch('/api/aws-s3-listObjects?type=premium');
-          if (!premiumResponse.ok) {
-            throw new Error('Failed to fetch premium files');
-          }
-          const premiumData = await premiumResponse.json();
-
-          // Fetch free addons
-          const freeResponse = await fetch('/api/aws-s3-listObjects?type=free');
-          if (!freeResponse.ok) {
-            throw new Error('Failed to fetch free files');
-          }
-          const freeData = await freeResponse.json();
-
-          setFiles({
-            premium: premiumData.files,
-            free: freeData.files
-          });
-        } catch (error) {
-          console.error('Error fetching files:', error);
-          setError('Failed to load addons');
+      try {
+        // Fetch premium addons
+        const premiumResponse = await fetch('/api/aws-s3-listObjects?type=premium');
+        if (!premiumResponse.ok) {
+          throw new Error('Failed to fetch premium files');
         }
+        const premiumData = await premiumResponse.json();
+
+        // Fetch free addons
+        const freeResponse = await fetch('/api/aws-s3-listObjects?type=free');
+        if (!freeResponse.ok) {
+          throw new Error('Failed to fetch free files');
+        }
+        const freeData = await freeResponse.json();
+
+        setFiles({
+          premium: premiumData.files,
+          free: freeData.files
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching files:', error);
+        setError('Failed to load addons');
+        setLoading(false);
       }
     };
 
     fetchFiles();
-  }, [user]);
+  }, []); // Removed user dependency
 
   const AddonGrid = ({ files, sectionType }: { files: string[], sectionType: 'free' | 'premium' }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -91,17 +79,6 @@ export default function LibraryPage() {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-pulse">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Access Denied</h1>
-          <p className="text-gray-600">Please sign in to access the addon library.</p>
-        </div>
       </div>
     );
   }
