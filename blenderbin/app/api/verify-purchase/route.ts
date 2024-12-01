@@ -1,7 +1,7 @@
 // app/api/verify-purchase/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '../../lib/firebase-admin';
-import { stripe } from '../checkout/route';
+import { stripe } from '../../lib/stripe';
 
 export async function POST(request: Request) {
   try {
