@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session cookie (5 days)
-    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days in milliseconds
+    const expiresIn = 60 * 60 * 24 * 5 * 1000;
     const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
     
     // Create response
@@ -25,8 +25,10 @@ export async function POST(request: NextRequest) {
     );
 
     // Set cookie in the response
-    response.cookies.set('session', sessionCookie, {
-      maxAge: expiresIn / 1000, // maxAge expects seconds
+    response.cookies.set({
+      name: 'session',
+      value: sessionCookie,
+      maxAge: expiresIn / 1000,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -44,14 +46,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE() {
-  // Create response
   const response = NextResponse.json(
     { success: true },
     { status: 200 }
   );
-
-  // Clear the session cookie
+  
   response.cookies.delete('session');
-    
+  
   return response;
 }
