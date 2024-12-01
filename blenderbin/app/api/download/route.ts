@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     // Generate signed URL for download from S3
     const signedUrl = await generateSignedDownloadUrl(
       process.env.AWS_S3_BUCKET!,
-      'path/to/your-product-file.zip', // Replace with your actual S3 file path
+      'VERSIONS/BlenderBin v1.4.zip', // Replace with your actual S3 file path
       300 // URL expires in 5 minutes
     );
 

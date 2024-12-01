@@ -109,14 +109,12 @@ export default function NavBar() {
             <Link href="/" className="text-xl font-bold text-gray-800">
               Your Logo
             </Link>
-            {user && (
-              <Link
-                href="/library"
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Addon Library
-              </Link>
-            )}
+            <Link
+              href="/library"
+              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+            >
+              Addon Library
+            </Link>
           </div>
 
           <div className="flex items-center space-x-4">
