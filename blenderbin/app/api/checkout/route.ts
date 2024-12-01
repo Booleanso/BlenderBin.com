@@ -1,12 +1,7 @@
 // app/api/checkout/route.ts
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { db } from '../../lib/firebase-admin';
-
-// Create and export the stripe instance
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia'
-});
+import { stripe } from '../../lib/stripe';
 
 async function getStripeCustomerId(userId: string) {
   const userDoc = await db.collection('customers').doc(userId).get();
