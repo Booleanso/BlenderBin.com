@@ -1,16 +1,56 @@
 // app/api/checkout/route.ts
-import { createCheckoutSession } from '../../lib/stripePayments';
 import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
+import { db } from '../../lib/firebase-admin';
+
+// Create and export the stripe instance
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-11-20.acacia'
+});
+
+async function getStripeCustomerId(userId: string) {
+  const userDoc = await db.collection('customers').doc(userId).get();
+  return userDoc.data()?.stripeId;
+}
 
 export async function POST(request: Request) {
   try {
-    const { userId, priceId } = await request.json();
-    const session = await createCheckoutSession(userId, priceId);
+    const body = await request.json();
+    const { userId, priceId } = body;
+
+    if (!userId || !priceId) {
+      return NextResponse.json(
+        { error: 'Missing required parameters' },
+        { status: 400 }
+      );
+    }
+
+    const stripeCustomerId = await getStripeCustomerId(userId);
+    
+    if (!stripeCustomerId) {
+      return NextResponse.json(
+        { error: 'No Stripe customer found' },
+        { status: 400 }
+      );
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      customer: stripeCustomerId,
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1
+      }],
+      success_url: `${process.env.NEXT_PUBLIC_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_URL}/canceled`
+    });
+
     return NextResponse.json({ sessionId: session.id });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Checkout error:', error);
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
