@@ -9,11 +9,19 @@ const s3 = new S3Client({
   },
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type') || 'premium';
+    
+    // Determine the folder path based on the type
+    const folderPath = type === 'premium' 
+      ? process.env.AWS_PREMIUM_FOLDER_PATH 
+      : process.env.AWS_FREE_FOLDER_PATH;
+
     const command = new ListObjectsV2Command({
       Bucket: process.env.AWS_BUCKET_NAME as string,
-      Prefix: process.env.AWS_FOLDER_PATH as string, // e.g., "addons/"
+      Prefix: folderPath as string,
     });
 
     const response = await s3.send(command);
@@ -29,7 +37,7 @@ export async function GET() {
         
         // Remove the prefix path and file extension
         const fileName = file.Key
-          .replace(process.env.AWS_FOLDER_PATH as string, '')
+          .replace(folderPath as string, '')
           .replace(/\.[^/.]+$/, ''); // Removes file extension
         
         // Skip empty names or folders
