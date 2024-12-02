@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, useMotionValue, useTransform, MotionValue } from 'framer-motion';
 
 interface FileSection {
   premium: string[];
@@ -13,6 +12,11 @@ interface FileItem {
   type: 'premium' | 'free';
 }
 
+interface Position {
+  x: number;
+  y: number;
+}
+
 export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<FileSection>({
@@ -20,6 +24,9 @@ export default function LibraryPage() {
     free: []
   });
   const [error, setError] = useState<string | null>(null);
+  const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [startPosition, setStartPosition] = useState<Position>({ x: 0, y: 0 });
 
   useEffect(() => {
     const fetchFiles = async () => {
@@ -51,15 +58,11 @@ export default function LibraryPage() {
 
   const AppGrid = () => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const x = useMotionValue(0);
-    const y = useMotionValue(0);
-    const [totalWidth, setTotalWidth] = useState(0);
     const [viewportDimensions, setViewportDimensions] = useState({ width: 0, height: 0 });
 
     const ITEM_SIZE = 500;
-    // Calculate spacing based on circle size to prevent overlap
-    const HORIZONTAL_SPACING = ITEM_SIZE * 0.866; // cos(30°) * diameter
-    const VERTICAL_SPACING = ITEM_SIZE * 0.75; // sin(30°) * diameter
+    const HORIZONTAL_SPACING = ITEM_SIZE * 0.866;
+    const VERTICAL_SPACING = ITEM_SIZE * 0.75;
 
     const allFiles: FileItem[] = [
       ...files.free.map(file => ({ name: file, type: 'free' as const })),
@@ -67,15 +70,6 @@ export default function LibraryPage() {
     ];
 
     useEffect(() => {
-      if (containerRef.current) {
-        const maxColumns = Math.ceil(Math.sqrt(allFiles.length * 2));
-        setTotalWidth(maxColumns * HORIZONTAL_SPACING);
-        setViewportDimensions({
-          width: window.innerWidth,
-          height: window.innerHeight
-        });
-      }
-
       const handleResize = () => {
         setViewportDimensions({
           width: window.innerWidth,
@@ -83,71 +77,100 @@ export default function LibraryPage() {
         });
       };
 
+      handleResize();
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
-    }, [allFiles.length]);
+    }, []);
 
-    const AppIcon = ({ 
-      fileName, 
-      type
-    }: { 
-      fileName: string; 
-      type: 'premium' | 'free';
-    }) => {
-      const itemRef = useRef<HTMLDivElement>(null);
-      
-      const scale = useTransform([x, y] as MotionValue<number>[], ([xValue, yValue]: number[]) => {
-        if (!containerRef.current || !itemRef.current) return 0;
-        
-        const containerBounds = containerRef.current.getBoundingClientRect();
-        const itemBounds = itemRef.current.getBoundingClientRect();
-        
-        const itemCenter = {
-          x: itemBounds.x + (itemBounds.width / 2),
-          y: itemBounds.y + (itemBounds.height / 2)
-        };
-
-        const distanceFromLeft = Math.max(0, Math.min(1, itemCenter.x / (viewportDimensions.width * 0.3)));
-        const distanceFromRight = Math.max(0, Math.min(1, (viewportDimensions.width - itemCenter.x) / (viewportDimensions.width * 0.3)));
-        const distanceFromTop = Math.max(0, Math.min(1, itemCenter.y / (viewportDimensions.height * 0.3)));
-        const distanceFromBottom = Math.max(0, Math.min(1, (viewportDimensions.height - itemCenter.y) / (viewportDimensions.height * 0.3)));
-
-        const edgeScale = Math.min(
-          distanceFromLeft,
-          distanceFromRight,
-          distanceFromTop,
-          distanceFromBottom
-        );
-
-        const containerCenter = {
-          x: containerBounds.width / 2,
-          y: containerBounds.height / 2
-        };
-        const currentPosition = {
-          x: itemBounds.x - containerBounds.x + xValue,
-          y: itemBounds.y - containerBounds.y + yValue
-        };
-        
-        const distanceFromCenter = Math.sqrt(
-          Math.pow(containerCenter.x - currentPosition.x, 2) + 
-          Math.pow(containerCenter.y - currentPosition.y, 2)
-        );
-        const maxDistance = Math.sqrt(
-          Math.pow(containerBounds.width / 2, 2) + 
-          Math.pow(containerBounds.height / 2, 2)
-        );
-        const centerScale = Math.max(0.4, 1 - (distanceFromCenter / maxDistance));
-
-        return Math.min(centerScale, edgeScale);
+    const handleMouseDown = (e: React.MouseEvent) => {
+      setIsDragging(true);
+      setStartPosition({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
       });
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+      if (!isDragging) return;
+      
+      const newX = e.clientX - startPosition.x;
+      const newY = e.clientY - startPosition.y;
+      
+      // Add constraints if needed
+      const maxDistance = 2000; // Adjust this value as needed
+      const constrainedX = Math.max(-maxDistance, Math.min(maxDistance, newX));
+      const constrainedY = Math.max(-maxDistance, Math.min(maxDistance, newY));
+      
+      setPosition({ x: constrainedX, y: constrainedY });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const calculateScale = (itemBounds: DOMRect) => {
+      const itemCenter = {
+        x: itemBounds.x + (itemBounds.width / 2),
+        y: itemBounds.y + (itemBounds.height / 2)
+      };
+
+      const distanceFromLeft = Math.max(0, Math.min(1, itemCenter.x / (viewportDimensions.width * 0.3)));
+      const distanceFromRight = Math.max(0, Math.min(1, (viewportDimensions.width - itemCenter.x) / (viewportDimensions.width * 0.3)));
+      const distanceFromTop = Math.max(0, Math.min(1, itemCenter.y / (viewportDimensions.height * 0.3)));
+      const distanceFromBottom = Math.max(0, Math.min(1, (viewportDimensions.height - itemCenter.y) / (viewportDimensions.height * 0.3)));
+
+      const edgeScale = Math.min(
+        distanceFromLeft,
+        distanceFromRight,
+        distanceFromTop,
+        distanceFromBottom
+      );
+
+      const centerPosition = {
+        x: viewportDimensions.width / 2,
+        y: viewportDimensions.height / 2
+      };
+
+      const distanceFromCenter = Math.sqrt(
+        Math.pow(centerPosition.x - itemCenter.x, 2) + 
+        Math.pow(centerPosition.y - itemCenter.y, 2)
+      );
+
+      const maxDistance = Math.sqrt(
+        Math.pow(viewportDimensions.width / 2, 2) + 
+        Math.pow(viewportDimensions.height / 2, 2)
+      );
+
+      const centerScale = Math.max(0.4, 1 - (distanceFromCenter / maxDistance));
+      return Math.min(centerScale, edgeScale);
+    };
+
+    const AppIcon = ({ fileName, type }: { fileName: string; type: 'premium' | 'free' }) => {
+      const itemRef = useRef<HTMLDivElement>(null);
+      const [scale, setScale] = useState(1);
+
+      useEffect(() => {
+        if (itemRef.current) {
+          const updateScale = () => {
+            const bounds = itemRef.current?.getBoundingClientRect();
+            if (bounds) {
+              setScale(calculateScale(bounds));
+            }
+          };
+
+          updateScale();
+          const interval = setInterval(updateScale, 100); // Update scale periodically
+          return () => clearInterval(interval);
+        }
+      }, [position]);
 
       return (
-        <motion.div
+        <div
           ref={itemRef}
-          style={{ scale }}
           className="relative"
+          style={{ transform: `scale(${scale})` }}
         >
-          <motion.a
+          <a
             href={`/library/${fileName}`}
             className="block w-[500px] h-[500px] rounded-full shadow-lg transition-shadow hover:shadow-xl relative"
             style={{
@@ -167,8 +190,8 @@ export default function LibraryPage() {
             >
               {type === 'premium' ? 'PAID' : 'FREE'}
             </div>
-          </motion.a>
-        </motion.div>
+          </a>
+        </div>
       );
     };
 
@@ -176,35 +199,26 @@ export default function LibraryPage() {
       const maxColumns = Math.ceil(Math.sqrt(allFiles.length * 2));
       const col = index % maxColumns;
       const row = Math.floor(index / maxColumns);
-      
-      // Offset odd rows for hexagonal pattern
       const xOffset = row % 2 ? HORIZONTAL_SPACING / 2 : 0;
       
       return {
         transform: `translate(
-          ${col * HORIZONTAL_SPACING + xOffset - totalWidth/2}px,
-          ${row * VERTICAL_SPACING - totalWidth/2}px
+          ${col * HORIZONTAL_SPACING + xOffset + position.x}px,
+          ${row * VERTICAL_SPACING + position.y}px
         )`
       };
     };
 
-    const dragConstraints = {
-      left: -totalWidth,
-      right: totalWidth,
-      top: -totalWidth,
-      bottom: totalWidth
-    };
-
     return (
-      <motion.div
+      <div
         ref={containerRef}
-        className="fixed inset-0 w-screen h-screen cursor-grab active:cursor-grabbing flex items-center justify-center"
-        drag
-        dragConstraints={dragConstraints}
-        style={{ x, y }}
-        initial={{ x: 0, y: 0 }}
+        className="fixed inset-0 w-screen h-screen cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       >
-        <div className="absolute">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           {allFiles.map((file, i) => (
             <div
               key={file.name}
@@ -218,7 +232,7 @@ export default function LibraryPage() {
             </div>
           ))}
         </div>
-      </motion.div>
+      </div>
     );
   };
 
