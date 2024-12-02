@@ -194,7 +194,7 @@ export default function LibraryPage() {
         </div>
       );
     };
-
+ 
     const getHexPosition = (index: number) => {
       const maxColumns = Math.ceil(Math.sqrt(allFiles.length * 2));
       const col = index % maxColumns;
