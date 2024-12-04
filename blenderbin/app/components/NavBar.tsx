@@ -7,6 +7,7 @@ import { auth } from '../lib/firebase-client';
 import { User } from 'firebase/auth';
 import { loadStripe } from '@stripe/stripe-js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import '../css/navbar.css'; // Make sure to create this file in the same directory
 
 interface SubscriptionStatus {
   isSubscribed: boolean;
@@ -98,98 +99,102 @@ export default function NavBar() {
   };
 
   if (loading) {
-    return <div className="animate-pulse">Loading...</div>;
+    return <div className="navbar-loading">Loading...</div>;
   }
 
   return (
-    <nav className="bg-white shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center space-x-4">
-            <Link href="/" className="text-xl font-bold text-gray-800">
-              Your Logo
-            </Link>
-            <Link
-              href="/library"
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Addon Library
-            </Link>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            {user ? (
-              <>
-                <span className="text-gray-700">{user.email}</span>
-                {subscriptionStatus.isSubscribed ? (
-                  <button
-                    onClick={handleRedownload}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                  >
-                    Re-download
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                  >
-                    Get Started
-                  </button>
-                )}
-                <button
-                  onClick={handleLogout}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <Link
-                href="/auth"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Sign In / Sign Up
+    <>
+      <div className="navbar-spacer"></div>
+      
+      <nav className="navbar">
+        <div className="navbar-container">
+          <div className="navbar-content">
+            <div className="navbar-left">
+              <Link href="/" className="navbar-logo">
+                Your Logo
               </Link>
-            )}
+              <Link
+                href="/library"
+                className="navbar-link"
+              >
+                Addon Library
+              </Link>
+            </div>
+
+            <div className="navbar-right">
+              {user ? (
+                <>
+                  <span className="navbar-email">{user.email}</span>
+                  {subscriptionStatus.isSubscribed ? (
+                    <button
+                      onClick={handleRedownload}
+                      className="navbar-button navbar-button-green"
+                    >
+                      Re-download
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setModalOpen(true)}
+                      className="navbar-button navbar-button-blue"
+                    >
+                      Get Started
+                    </button>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="navbar-button navbar-button-red"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/auth"
+                  className="navbar-button navbar-button-indigo"
+                >
+                  Sign In / Sign Up
+                </Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Subscribe to Our Product</DialogTitle>
-            <DialogDescription>
-              Get access to our premium boilerplate and start building amazing applications today!
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-sm text-gray-500">
-              <h3 className="font-medium text-gray-900">What is included:</h3>
-              <ul className="list-disc pl-5 mt-2 space-y-2">
-                <li>Complete Next.js 14 boilerplate with App Router</li>
-                <li>Firebase Authentication integration</li>
-                <li>Stripe subscription setup</li>
-                <li>Tailwind CSS and shadcn/ui components</li>
-                <li>TypeScript configuration</li>
-                <li>Free updates and support</li>
-              </ul>
+        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Subscribe to Our Product</DialogTitle>
+              <DialogDescription>
+                Get access to our premium boilerplate and start building amazing applications today!
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-500">
+                <h3 className="font-medium text-gray-900">What is included:</h3>
+                <ul className="list-disc pl-5 mt-2 space-y-2">
+                  <li>Complete Next.js 14 boilerplate with App Router</li>
+                  <li>Firebase Authentication integration</li>
+                  <li>Stripe subscription setup</li>
+                  <li>Tailwind CSS and shadcn/ui components</li>
+                  <li>TypeScript configuration</li>
+                  <li>Free updates and support</li>
+                </ul>
+              </div>
+              <div className="text-lg font-semibold">
+                Price: $49.99/one-time
+              </div>
+              <button
+                onClick={() => {
+                  setModalOpen(false);
+                  handleCheckout();
+                }}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Purchase Now
+              </button>
             </div>
-            <div className="text-lg font-semibold">
-              Price: $49.99/one-time
-            </div>
-            <button
-              onClick={() => {
-                setModalOpen(false);
-                handleCheckout();
-              }}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Purchase Now
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </nav>
+          </DialogContent>
+        </Dialog>
+      </nav>
+    </>
   );
 }

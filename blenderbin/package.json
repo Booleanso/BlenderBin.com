@@ -14,7 +14,10 @@
     "@aws-sdk/s3-request-presigner": "latest",
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@radix-ui/react-dialog": "latest",
+    "@react-three/drei": "^9.119.0",
+    "@react-three/fiber": "^8.17.10",
     "@stripe/stripe-js": "latest",
+    "@types/three": "^0.170.0",
     "aws-sdk": "latest",
     "blenderbin": "file:",
     "clsx": "latest",
@@ -26,7 +29,8 @@
     "react": "latest",
     "react-dom": "latest",
     "stripe": "latest",
-    "tailwind-merge": "latest"
+    "tailwind-merge": "latest",
+    "three": "^0.171.0"
   },
   "devDependencies": {
     "@types/node": "latest",
