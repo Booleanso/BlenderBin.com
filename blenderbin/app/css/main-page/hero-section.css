@@ -3,6 +3,7 @@
     width: 100%;
     position: relative;
     display: flex;
+    color: white;
 
 }
 
@@ -24,7 +25,8 @@
     bottom: 6%;
     left: 0;
     right: 0;
-    gap: 16px
+    gap: 16px;
+    color: white;
 }
 
 .new-tag{
@@ -35,10 +37,12 @@
     background-color: green;
     border-radius: 65px;
     font-size: 11px;
+    color: white;
 }
 
 .hero-title{
     font-size: 25px;
+    color: white;
     
 }
 

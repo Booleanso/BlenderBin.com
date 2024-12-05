@@ -111,7 +111,7 @@ export default function NavBar() {
           <div className="navbar-content">
             <div className="navbar-left">
               <Link href="/" className="navbar-logo">
-                Your Logo
+                BlenderBin
               </Link>
               <Link
                 href="/library"
@@ -120,45 +120,44 @@ export default function NavBar() {
                 Addon Library
               </Link>
             </div>
-
-            <div className="navbar-right">
-              {user ? (
-                <>
-                  <span className="navbar-email">{user.email}</span>
-                  {subscriptionStatus.isSubscribed ? (
-                    <button
-                      onClick={handleRedownload}
-                      className="navbar-button navbar-button-green"
-                    >
-                      Re-download
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setModalOpen(true)}
-                      className="navbar-button navbar-button-blue"
-                    >
-                      Get Started
-                    </button>
-                  )}
-                  <button
-                    onClick={handleLogout}
-                    className="navbar-button navbar-button-red"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <Link
-                  href="/auth"
-                  className="navbar-button navbar-button-indigo"
-                >
-                  Sign In / Sign Up
-                </Link>
-              )}
-            </div>
           </div>
+          
         </div>
-
+        <div className="navbar-right">
+          {user ? (
+            <>
+              {/* <span className="navbar-email">{user.email}</span> */}
+              {subscriptionStatus.isSubscribed ? (
+                <button
+                  onClick={handleRedownload}
+                  className="navbar-button navbar-button-green"
+                >
+                  Re-download
+                </button>
+              ) : (
+                <button
+                  onClick={() => setModalOpen(true)}
+                  className="navbar-button navbar-button-blue"
+                >
+                  Get Started
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="navbar-button navbar-button-red"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/auth"
+              className="navbar-button navbar-button-indigo"
+            >
+              Sign In / Sign Up
+            </Link>
+          )}
+        </div>
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
