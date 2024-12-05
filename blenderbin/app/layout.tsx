@@ -29,11 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <script 
-          src="https://min30327.github.io/luxy.js/dist/js/luxy.js" 
-          async
-          defer
-        />
+
       </head>
       <body
       

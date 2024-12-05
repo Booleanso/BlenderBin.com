@@ -3,19 +3,13 @@ import "./css/main-page/hero-section.css";
 import "./css/main-page/about-section.css";
 import "./css/main-page/blender-screen.css";
 
+import DTFA from "./components/main-page/DTFA";
+import VideoSection from "./components/main-page/VideoSection";
 
 export default function Home() {
   return (
     <div className="body-main">
       <section className="hero-section"> 
-        <iframe
-          className="spline"
-          src="https://my.spline.design/blenderbincopy-1749f0bebc4ffdbe4c9fb47c98860979/"
-          width="100%"
-          height="100%"
-          style={{ border: 'none' }}
-          allowFullScreen
-        ></iframe>
         <div className="hero-desc">
           <div className="new-tag">SPANKING NEW</div>
           <h1 className="hero-title">All your Blender addons under one subscription.</h1>
@@ -27,13 +21,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="blender-screen">
-        <div className="screen-container">
-          <div className="actual-screne">
-
-          </div>
-        </div>
-      </section>
+      <DTFA />
+      <VideoSection />
 
 
       <section className="quick-about">
