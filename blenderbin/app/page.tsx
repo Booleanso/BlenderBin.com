@@ -31,6 +31,7 @@ export default function Home() {
   return (
     <div className="body-main">
       <section className="hero-section">
+
       <iframe
         src="https://my.spline.design/blenderbincopy-1749f0bebc4ffdbe4c9fb47c98860979/"
         className="w-full h-screen absolute top-0 left-0 -z-10"
@@ -41,7 +42,7 @@ export default function Home() {
         
         <div className="hero-desc">
           <div className="new-tag">SPANKING NEW</div>
-          <h1 className="mb-6 text-5xl font-bold md:text-5xl">
+          <h1 className="mb-1 text-5xl font-bold md:text-4xl">
           All of your Blender addons, in one space.
           </h1>
           <p className="mx-auto mb-8 max-w-3xl text-lg text-gray-300 md:text-xl">
@@ -53,8 +54,9 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      
       <DTFA />
+      <ConvergingFeatures />
 
       <section className="feature-section">
         <div className="feature-content">
@@ -78,9 +80,6 @@ export default function Home() {
 
       <BentoBox />
 
-      <ConvergingFeatures />
-
-      
       <VideoSection />
     </div>
   );

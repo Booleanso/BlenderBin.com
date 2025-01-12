@@ -140,7 +140,6 @@ export default function NavBar() {
         throw new Error('Failed to cancel subscription');
       }
 
-      // Refresh subscription status
       const statusResponse = await fetch(`/api/subscription/status?userId=${user.uid}`);
       if (statusResponse.ok) {
         const data = await statusResponse.json();
@@ -158,19 +157,17 @@ export default function NavBar() {
   }
 
   const navLinks = [
-    { href: '/', text: 'Home' },
-    { href: '/features', text: 'Features' },
-    { href: '/pricing', text: 'Pricing' },
-    { href: '/tutorials', text: 'Tutorials' },
-    { href: '/influencers', text: 'Influencers' },
+    { href: '/', text: 'HOME' },
+    { href: '/features', text: 'FEATURES' },
+    { href: '/pricing', text: 'PRICING' },
+    { href: '/tutorials', text: 'TUTORIALS' },
+    { href: '/sponsors', text: 'SPONSORS' },
     { href: '/faq', text: 'FAQ' },
-    { href: '/library', text: 'Addon Library' },
+    { href: '/library', text: 'ADDONS' },
   ];
 
   return (
     <>
-      <div className="navbar-spacer"></div>
-      
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-content">
@@ -184,6 +181,7 @@ export default function NavBar() {
                   priority
                 />
               </Link>
+              
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -194,51 +192,51 @@ export default function NavBar() {
                 </Link>
               ))}
             </div>
-          </div>
-        </div>
-        
-        <div className="navbar-right">
-          {user ? (
-            <>
-              <span className="navbar-email">{user.email}</span>
-              {subscriptionStatus.isSubscribed ? (
+
+            <div className="navbar-right">
+              {user ? (
                 <>
+                  <span className="navbar-email">{user.email}</span>
+                  {subscriptionStatus.isSubscribed ? (
+                    <>
+                      <button
+                        onClick={handleRedownload}
+                        className="navbar-button"
+                      >
+                        RE-DOWNLOAD
+                      </button>
+                      <button
+                        onClick={() => setProfileModalOpen(true)}
+                        className="navbar-button"
+                      >
+                        PROFILE
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setModalOpen(true)}
+                      className="navbar-button"
+                    >
+                      GET STARTED
+                    </button>
+                  )}
                   <button
-                    onClick={handleRedownload}
-                    className="navbar-button navbar-button-green"
+                    onClick={handleLogout}
+                    className="navbar-button"
                   >
-                    Re-download
-                  </button>
-                  <button
-                    onClick={() => setProfileModalOpen(true)}
-                    className="navbar-button navbar-button-purple"
-                  >
-                    Profile
+                    LOGOUT
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => setModalOpen(true)}
-                  className="navbar-button navbar-button-blue"
+                <Link
+                  href="/auth"
+                  className="navbar-button"
                 >
-                  Get Started
-                </button>
+                  Sign In / Sign Up
+                </Link>
               )}
-              <button
-                onClick={handleLogout}
-                className="navbar-button navbar-button-red"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <Link
-              href="/auth"
-              className="navbar-button navbar-button-indigo"
-            >
-              Sign In / Sign Up
-            </Link>
-          )}
+            </div>
+          </div>
         </div>
       </nav>
 
