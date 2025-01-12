@@ -1,3 +1,4 @@
+// app/api/subscription/status/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '../../../lib/firebase-admin';
 
@@ -13,12 +14,21 @@ export async function GET(request: Request) {
       );
     }
 
-    const purchaseDoc = await db.collection('purchases').doc(userId).get();
-    const purchaseData = purchaseDoc.data();
+    // Query the subscriptions collection instead of purchases
+    const subscriptionDoc = await db
+      .collection('customers')
+      .doc(userId)
+      .collection('subscriptions')
+      .where('status', 'in', ['active', 'trialing']) // Check for active subscriptions
+      .limit(1)
+      .get();
+
+    const isSubscribed = !subscriptionDoc.empty;
+    const subscription = subscriptionDoc.docs[0]?.data();
 
     return NextResponse.json({
-      isSubscribed: !!purchaseData?.purchaseVerified,
-      priceId: purchaseData?.priceId
+      isSubscribed,
+      priceId: subscription?.price?.id
     });
   } catch (error) {
     console.error('Status check error:', error);

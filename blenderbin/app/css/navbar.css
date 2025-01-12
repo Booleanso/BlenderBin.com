@@ -119,7 +119,7 @@
 }
 
 .navbar-email {
-    color: #000000;
+    color: #ffffff;
     font-size: 11px;
 }
 
@@ -183,3 +183,15 @@
         opacity: 0.5;
     }
 }
+
+.navbar-logo {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+  }
+  
+  .navbar-logo img {
+    height: auto;
+    width: auto;
+    max-height: 40px; /* Adjust based on your navbar height */
+  }

@@ -1,0 +1,72 @@
+/* // CSS (bento-box.css) */
+.bento-section {
+  width: 100%;
+  padding: 2rem;
+  background-color: #000;
+}
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.bento-item {
+  background-color: #fff;
+  border-radius: 1rem;
+  overflow: hidden;
+  position: relative;
+  min-height: 200px;
+  transition: transform 0.3s ease;
+}
+
+.bento-item:hover {
+  transform: translateY(-5px);
+}
+
+.bento-content {
+  padding: 1.5rem;
+}
+
+.featured {
+  grid-column: span 2;
+  grid-row: span 1;
+}
+
+.wide {
+  grid-column: span 2;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #f0f0f0;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.bento-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.bento-content p {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .featured, .wide {
+    grid-column: span 1;
+  }
+}

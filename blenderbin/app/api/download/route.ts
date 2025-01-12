@@ -15,21 +15,26 @@ export async function GET(request: Request) {
       );
     }
 
-    // Verify purchase
-    const purchaseDoc = await db.collection('purchases').doc(userId).get();
-    const purchaseData = purchaseDoc.data();
+    // Check subscription status in the correct collection
+    const subscriptionQuery = await db
+      .collection('customers')
+      .doc(userId)
+      .collection('subscriptions')
+      .where('status', 'in', ['active', 'trialing'])
+      .limit(1)
+      .get();
 
-    if (!purchaseData?.purchaseVerified) {
+    if (subscriptionQuery.empty) {
       return NextResponse.json(
-        { error: 'No verified purchase found' },
+        { error: 'No active subscription found' },
         { status: 403 }
       );
     }
 
     // Generate signed URL for download from S3
     const signedUrl = await generateSignedDownloadUrl(
-      process.env.AWS_S3_BUCKET!,
-      'VERSIONS/BlenderBin v1.4.zip', // Replace with your actual S3 file path
+      process.env.AWS_BUCKET_NAME!,
+      'VERSIONS/BlenderBin v1.4.zip',
       300 // URL expires in 5 minutes
     );
 

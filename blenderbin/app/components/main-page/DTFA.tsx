@@ -51,7 +51,7 @@ const DTFA = (): JSX.Element => {
   ];
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-black px-4 py-16 text-white">
+    <section className="relative min-h-25vh overflow-hidden bg-black px-4 py-16 text-white">
       {/* Grid background */}
       <div className="absolute inset-0 opacity-20">
         <div className="grid h-full w-full grid-cols-12 gap-4">
@@ -62,7 +62,7 @@ const DTFA = (): JSX.Element => {
       </div>
 
       {/* Content container */}
-      <div className="relative mx-auto max-w-4xl space-y-8 text-center">
+      <div className="relative mx-auto max-w-7xl space-y-8 text-center">
         {/* Logo */}
         <div className="mb-12">
           <div className="inline-block text-4xl font-bold">b</div>
