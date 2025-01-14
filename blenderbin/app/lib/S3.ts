@@ -32,7 +32,7 @@ export async function generateSignedDownloadUrl(
   }
 }
 
-export async function listFiles(bucket: string, prefix: string) {
+export async function listFiles(bucket: string, prefix: string, includeFullPath: boolean = false) {
   const command = new ListObjectsV2Command({
     Bucket: bucket,
     Prefix: prefix,
@@ -50,6 +50,10 @@ export async function listFiles(bucket: string, prefix: string) {
       .map(file => {
         if (!file.Key) return null;
         
+        if (includeFullPath) {
+          return file.Key;
+        }
+        
         // Remove the prefix path and file extension
         const fileName = file.Key
           .replace(prefix, '')
@@ -63,6 +67,33 @@ export async function listFiles(bucket: string, prefix: string) {
       .filter((fileName): fileName is string => fileName !== null);
   } catch (error) {
     console.error("Error listing files:", error);
+    throw error;
+  }
+}
+
+export async function getIconsMap(bucket: string, prefix: string) {
+  try {
+    // Get full paths for icons
+    const iconFiles = await listFiles(bucket, prefix, true);
+    
+    const iconsMap: Record<string, string> = {};
+    
+    await Promise.all(
+      iconFiles.map(async (fullPath) => {
+        // Get the base name without extension for mapping
+        const baseName = fullPath
+          .replace(prefix, '')
+          .replace(/\.[^/.]+$/, '');
+        
+        // Generate signed URL for each icon
+        const signedUrl = await generateSignedDownloadUrl(bucket, fullPath);
+        iconsMap[baseName] = signedUrl;
+      })
+    );
+    
+    return iconsMap;
+  } catch (error) {
+    console.error("Error generating icons map:", error);
     throw error;
   }
 }

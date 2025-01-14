@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import "../../css/main-page/video-section.css";
 
 interface Position {
   x: number;
@@ -28,36 +29,36 @@ const VideoSection = (): JSX.Element => {
   }, []);
 
   return (
-    <section className="relative flex min-h-screen items-center bg-black px-4 py-16">
+    <section className="video-section">
       {/* Grid background */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="grid h-full w-full grid-cols-12 gap-4">
+      <div className="grid-background">
+        <div className="grid-container">
           {[...Array(12)].map((_, i) => (
-            <div key={i} className="h-full border-l border-gray-700" />
+            <div key={i} className="grid-line" />
           ))}
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="content-wrapper">
         {/* Text Content */}
-        <div className="space-y-6">
-          <h2 className="text-5xl font-bold text-white md:text-6xl">
+        <div className="text-content">
+          <h2 className="heading">
             Experience ease like never before.
           </h2>
-          <p className="text-lg text-gray-300 md:text-xl">
+          <p className="description">
             Easy, user-friendly Blender UI to help you with complex projects,
             without having to put the complex in complex.
           </p>
-          <button className="rounded-full bg-white/10 px-8 py-3 text-white backdrop-blur-sm transition-all hover:bg-white/20">
+          <button className="preview-button">
             View Plugin Preview
           </button>
         </div>
 
         {/* Video Placeholder */}
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-900">
-          <div className="absolute right-4 top-4 rounded-full bg-black/50 p-2 backdrop-blur-sm">
+        <div className="video-container">
+          <div className="pause-button">
             <svg
-              className="h-6 w-6 text-white"
+              className="pause-icon"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -75,12 +76,11 @@ const VideoSection = (): JSX.Element => {
 
       {/* Animated gradient blob */}
       <div
-        className="absolute h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"
+        className="gradient-blob"
         style={{
           left: `${position.x}%`,
           top: `${position.y}%`,
           transform: "translate(-50%, -50%)",
-          transition: "all 0.5s ease-out",
         }}
       />
     </section>

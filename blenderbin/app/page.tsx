@@ -55,28 +55,10 @@ export default function Home() {
         </div>
       </section>
       
-      <DTFA />
+      
       <ConvergingFeatures />
 
-      <section className="feature-section">
-        <div className="feature-content">
-          <h2>Many addons, little cost.</h2>
-          <p>Our subscription was meant for plugins that can help you in little ways; so enjoy paying for one thing, and having it all.</p>
-          <button className="view-plugins-button">View All Plugins</button>
-        </div>
-        <div className="feature-image-container">
-          <Image 
-            src="/your-image.png"
-            alt="Feature illustration"
-            width={400}
-            height={600}
-            className="floating-image"
-            style={{
-              transform: `translateY(${scrollY * 0.2}px)`
-            }}
-          />
-        </div>
-      </section>
+      <DTFA />
 
       <BentoBox />
 

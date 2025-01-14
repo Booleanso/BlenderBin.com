@@ -1,121 +1,150 @@
 /* ConvergingFeatures.css */
 .converging-section {
-    position: relative;
-    height: 100vh;
-    overflow: hidden;
-    background-color: #000;
-    color: #fff;
-  }
+  position: relative;
+  height: 200vh; /* Two viewport heights for scrolling */
+  background-color: #000;
+  color: #fff;
   
-  .scroll-container {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .features-container {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
+}
+
+.scroll-container {
+  position: sticky; /* This keeps it within the section */
+  top: 0;
+  width: 100%;
+  height: 100vh;
+}
+
+.features-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.feature-card-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.feature-card {
+  position: absolute;
+  width: 240px;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  border-radius: 1rem;
+  transition: transform 0.3s ease, opacity 0.3s ease, background 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  will-change: transform, opacity;
+}
+
+.feature-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.addon-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.feature-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+  text-align: center;
+}
+
+.addon-type {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.addon-type.free {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+
+.addon-type.premium {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.center-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  width: 600px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  overflow: hidden;
+  transition: all 0.5s ease;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  will-change: transform, opacity;
+}
+
+.center-image {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.card-content {
+  padding: 2rem;
+  text-align: center;
+}
+
+.card-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.card-content p {
+  color: #cbd5e1;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+
+
+/* Media queries */
+@media (max-width: 1024px) {
   .feature-card {
-    position: absolute;
-    width: 240px;
-    padding: 1.5rem;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(8px);
-    border-radius: 1rem;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    will-change: transform, opacity;
-  }
-  
-  .feature-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: #fff;
-  }
-  
-  .feature-description {
-    color: #cbd5e1;
-    font-size: 0.875rem;
-    line-height: 1.5;
+    width: 200px;
   }
   
   .center-card {
-    position: absolute;
-    z-index: 10;
-    width: 600px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 1.5rem;
-    overflow: hidden;
-    transition: transform 0.5s ease, opacity 0.5s ease;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    will-change: transform, opacity;
+    width: 90%;
+    max-width: 500px;
   }
-  
-  .center-image {
-    width: 100%;
-    height: auto;
-    object-fit: cover;
+}
+
+@media (max-width: 768px) {
+  .feature-card {
+    width: 180px;
+    padding: 1rem;
   }
-  
-  .card-content {
-    padding: 2rem;
-    text-align: center;
+
+  .feature-title {
+    font-size: 1rem;
   }
-  
-  .card-content h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
+
+  .addon-type {
+    font-size: 0.75rem;
   }
-  
-  .card-content p {
-    color: #cbd5e1;
-    font-size: 1.125rem;
-    line-height: 1.6;
-  }
-  
-  /* Hover effects */
-  .feature-card:hover {
-    transform: scale(1.05);
-    background: rgba(255, 255, 255, 0.12);
-  }
-  
-  /* Media queries */
-  @media (max-width: 1024px) {
-    .feature-card {
-      width: 200px;
-    }
-    
-    .center-card {
-      width: 90%;
-      max-width: 500px;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .feature-card {
-      width: 180px;
-      padding: 1rem;
-    }
-  
-    .feature-title {
-      font-size: 1rem;
-    }
-  
-    .feature-description {
-      font-size: 0.75rem;
-    }
-  }
+}

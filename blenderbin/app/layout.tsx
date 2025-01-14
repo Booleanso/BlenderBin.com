@@ -1,5 +1,6 @@
 import NavBar from "./components/NavBar";
 import Footer from "./components/Footer";
+import Workspaces from "./components/Workspaces";
 
 import type { Metadata } from "next";
 import localFont from "next/font/local";
@@ -28,13 +29,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-
-      </head>
+      <head></head>
       <body
-      
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      ><NavBar />
+      >
+        <NavBar />
+        <Workspaces />
         {children}
         <Footer />
       </body>
