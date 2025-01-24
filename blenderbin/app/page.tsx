@@ -47,9 +47,9 @@ export default function Home() {
 
       <FeaturesSection />
 
-      <BentoBox />
-
       <VideoSection />
+
+      <BentoBox />
 
       <Newsletter
         title="Iterating with Shadow Workspaces"
