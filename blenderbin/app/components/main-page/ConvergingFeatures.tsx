@@ -134,7 +134,7 @@ const ConvergingFeatures = () => {
               >
                 <div className="feature-content">
                   {addon.iconUrl && (
-                    <img
+                    <Image
                       src={addon.iconUrl}
                       alt={`${addon.name} icon`}
                       className="addon-icon"

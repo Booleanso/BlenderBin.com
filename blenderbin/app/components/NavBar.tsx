@@ -3,89 +3,35 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { auth } from '../lib/firebase-client';
 import { User } from 'firebase/auth';
 import { loadStripe } from '@stripe/stripe-js';
+
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import '../css/navbar.css';
+import styles from '../css/NavBar.module.scss';
 
 interface SubscriptionStatus {
   isSubscribed: boolean;
   priceId?: string;
 }
 
-interface S3Files {
-  premium: string[];
-  free: string[];
-  icons: Record<string, string>;
-}
-
-interface CollapsiblePanelProps {
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}
-
-const CollapsiblePanel: React.FC<CollapsiblePanelProps> = ({ title, children, defaultOpen = true }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
-  return (
-    <div className="panel-container">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="panel-header"
-      >
-        {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        {title}
-      </button>
-      {isOpen && (
-        <div className="panel-content">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default function NavBar() {
+const NavBar = () => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [s3Files, setS3Files] = useState<S3Files>({ premium: [], free: [], icons: {} });
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
     isSubscribed: false
   });
 
   useEffect(() => {
-    const fetchS3Files = async () => {
-      try {
-        const [filesResponse, iconsResponse] = await Promise.all([
-          fetch('/api/aws-s3-listObjects'),
-          fetch('/api/aws-s3-listIcons')
-        ]);
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
+      setLoading(false);
+    });
 
-        if (!filesResponse.ok || !iconsResponse.ok) {
-          throw new Error('Failed to fetch S3 files or icons');
-        }
-
-        const filesData = await filesResponse.json();
-        const iconsData = await iconsResponse.json();
-
-        setS3Files({
-          premium: filesData.premium,
-          free: filesData.free,
-          icons: iconsData
-        });
-      } catch (error) {
-        console.error('Error fetching S3 files:', error);
-      }
-    };
-
-    fetchS3Files();
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -149,24 +95,6 @@ export default function NavBar() {
     }
   };
 
-  const handleRedownload = async () => {
-    try {
-      const response = await fetch(`/api/download?userId=${user?.uid}`);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Download error:', data.error);
-        return;
-      }
-
-      if (data.downloadUrl) {
-        window.location.href = data.downloadUrl;
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-    }
-  };
-
   const handleUnsubscribe = async () => {
     try {
       if (!user?.uid) return;
@@ -195,122 +123,79 @@ export default function NavBar() {
     }
   };
 
-  const getDisplayName = (filename: string) => {
-    return filename
-      .replace(/\.[^/.]+$/, '')
-      .replace(/[_-]/g, ' ')
-      .toUpperCase();
-  };
+  const handleRedownload = async () => {
+    try {
+      const response = await fetch(`/api/download?userId=${user?.uid}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Download error:', data.error);
+        return;
+      }
 
-  const getIconUrl = (filename: string) => {
-    const baseName = filename.replace(/\.[^/.]+$/, '');
-    return s3Files.icons[baseName] || null;
+      if (data.downloadUrl) {
+        window.location.href = data.downloadUrl;
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+    }
   };
 
   if (loading) {
-    return <div className="navbar-loading">Loading...</div>;
+    return <div className={styles.loading}>Loading...</div>;
   }
 
   return (
-    <>
-      <nav className="navbar">
-        {/* User Controls Section */}
-        <div className="buttons-full-wrap">
-          <div className="navbar-right">
-            {user ? (
-              <>
-                <span className="navbar-email">{user.email}</span>
-                {subscriptionStatus.isSubscribed ? (
-                  <>
-                    <div className="button-wrapper">
-                      <button onClick={handleRedownload} className="navbar-button">RE-DOWNLOAD</button>
-                    </div>
-                    <div className="button-wrapper">
-                      <button onClick={() => setProfileModalOpen(true)} className="navbar-button">PROFILE</button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="button-wrapper">
-                    <button onClick={() => setModalOpen(true)} className="navbar-button">GET STARTED</button>
-                  </div>
-                )}
-                <div className="button-wrapper">
-                  <button onClick={handleLogout} className="navbar-button">LOGOUT</button>
-                </div>
-              </>
-            ) : (
-              <div className="button-wrapper">
-                <Link href="/auth" className="navbar-button">Sign In / Sign Up</Link>
-              </div>
-            )}
-          </div>
+    <nav className={styles.navbar}>
+      <div className={styles.navContainer}>
+        {/* Logo and brand */}
+        <Link href="/" className={styles.logoContainer}>
+          <span className={styles.logo}>BlenderBin</span>
+        </Link>
+
+        {/* Main navigation */}
+        <div className={styles.navLinks}>
+          <Link href="/features" className={styles.navLink}>Features</Link>
+          <Link href="/pricing" className={styles.navLink}>Pricing</Link>
+          <Link href="/docs" className={styles.navLink}>Docs</Link>
         </div>
 
-        {/* Addons Section */}
-        <div className="navbar-container">
-          <div className="navbar-content">
-            {/* Free Addons Panel */}
-            <CollapsiblePanel title="FREE ADDONS">
-              <div className="buttons-full-wrap">
-                {s3Files.free.map((filename) => (
-                  <div key={`free-${filename}`} className="button-wrapper">
-                    <div className="addon-link-container">
-                      {getIconUrl(filename) && (
-                        <div className="addon-icon-wrapper">
-                          <Image
-                            src={getIconUrl(filename)!}
-                            alt={`${getDisplayName(filename)} icon`}
-                            width={24}
-                            height={24}
-                          />
-                        </div>
-                      )}
-                      <Link
-                        href={`/library/${encodeURIComponent(filename)}`}
-                        className="navbar-link"
-                      >
-                        {getDisplayName(filename)}
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CollapsiblePanel>
+        {/* Auth section */}
+        <div className={styles.authButtons}>
+          {user ? (
+            <>
+              <span className={styles.userEmail}>{user.email}</span>
 
-            {/* Premium Addons Panel */}
-            {subscriptionStatus.isSubscribed && (
-              <CollapsiblePanel title="PREMIUM ADDONS">
-                <div className="buttons-full-wrap">
-                  {s3Files.premium.map((filename) => (
-                    <div key={`premium-${filename}`} className="button-wrapper">
-                      <div className="addon-link-container">
-                        {getIconUrl(filename) && (
-                          <div className="addon-icon-wrapper">
-                            <Image
-                              src={getIconUrl(filename)!}
-                              alt={`${getDisplayName(filename)} icon`}
-                              width={24}
-                              height={24}
-                            />
-                          </div>
-                        )}
-                        <Link
-                          href={`/library/${encodeURIComponent(filename)}`}
-                          className="navbar-link"
-                        >
-                          {getDisplayName(filename)}
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
+              {subscriptionStatus.isSubscribed ? (
+                <div>
+                  <button onClick={handleRedownload} className={styles.downloadButton}>
+                    Re-Download
+                  </button>
+                  <button onClick={() => setProfileModalOpen(true)} className="navbar-button">Profile</button>
+
                 </div>
-              </CollapsiblePanel>
-            )}
-          </div>
-        </div>
-      </nav>
 
-      {/* Subscription Modal */}
+              ) : (
+                <div>
+                  <button onClick={() => setModalOpen(true)} className="navbar-button">Get Started</button>
+                </div>
+                
+                
+              )}
+              <button onClick={handleLogout} className={styles.logoutButton}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/auth" className={styles.loginButton}>Log in</Link>
+              <Link href="/auth" className={styles.signupButton}>Sign up</Link>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Get Started Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -381,6 +266,11 @@ export default function NavBar() {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </nav>
   );
-}
+};
+
+export default NavBar;
+
+
+//in NavBar.tsx, i have a navbar that looks like a cursor navbar, but in BlenderPanel.tsx, there is logic that shows a login or signup, and switches it to logout to be able to logout, and shows the email of th person signed in, and a download button to download a file from s3. this logic is already applied to navbar.tsx but i want to apply another logic for it as well. i want you to apply the modal popup for the profile if the user bought the subscription, and then the unsubscribe functionality, and then bring on the get started functionality with the stripe buy button as well if the user isnt subscribed

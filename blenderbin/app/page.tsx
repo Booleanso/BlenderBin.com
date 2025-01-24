@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import "./css/main-page/hero-section.css";
+// import Image from "next/image";
+
 import "./css/main-page/about-section.css";
 import "./css/main-page/blender-screen.css";
 import "./css/main-page/scroll-addons.css";
@@ -13,7 +13,6 @@ import FeaturesSection from '../app/components/main-page/FeatureSection';
 import Newsletter from '../app/components/main-page/Newsletter';
 import LovedBy from '../app/components/main-page/LovedBy';
 import BentoBox from '../app/components/main-page/BentoBox';
-import "./css/main-page/bento-box.css";
 import ConvergingFeatures from '../app/components/main-page/ConvergingFeatures';
 
 
@@ -35,15 +34,14 @@ export default function Home() {
 
   return (
     <div className="body-main">
-      <section className="hero-section">
 
-        <HeroSection />
+      <HeroSection scrollY={scrollY} />
 
 
-      </section>
+
+      <ConvergingFeatures />
 
       <DTFA />
-
 
       <TabComponent />
 
@@ -62,7 +60,7 @@ export default function Home() {
 
       <LovedBy />
       
-      <ConvergingFeatures />
+      
 
 
     </div>

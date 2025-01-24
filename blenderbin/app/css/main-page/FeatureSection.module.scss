@@ -1,0 +1,103 @@
+.featureSection {
+  padding: 6rem 2rem;
+  background-color: #000;
+  color: #fff;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rem;
+}
+
+.featureHeader {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+
+  h2 {
+    font-size: 3.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    font-size: 1.2rem;
+    color: #888;
+    margin-bottom: 2rem;
+  }
+}
+
+.seeMoreBtn {
+  background: transparent;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.featureCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: #333;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    color: #888;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+  }
+}
+
+.featureImage {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // Add specific styling for your images here
+}
+
+// Add responsive design
+@media (max-width: 1024px) {
+  .featureGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .featureGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .featureHeader {
+    h2 {
+      font-size: 2.5rem;
+    }
+  }
+}

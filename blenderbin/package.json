@@ -31,6 +31,7 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "sass": "^1.83.4",
     "stripe": "latest",
     "tailwind-merge": "latest",
     "three": "^0.171.0"

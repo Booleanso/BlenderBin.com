@@ -1,4 +1,5 @@
-// import NavBar from "./components/NavBar";
+// import NavBar from "./components/BlenderPanel";
+import NavBar from "./components/NavBar";
 // import Workspaces from "./components/Workspaces";
 import Footer from "./components/Footer";
 
@@ -34,8 +35,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* <NavBar />
-        <Workspaces /> */}
+        <NavBar />
+        {/* <Workspaces /> */}
         {children}
         <Footer />
       </body>

@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { useEffect, useState } from "react";
 import "../../css/main-page/video-section.css";
 
@@ -8,7 +9,7 @@ interface Position {
   y: number;
 }
 
-const VideoSection = (): JSX.Element => {
+const VideoSection = () => {
   const [position, setPosition] = useState<Position>({ x: 75, y: 50 });
 
   useEffect(() => {

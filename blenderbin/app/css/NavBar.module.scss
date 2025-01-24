@@ -1,0 +1,99 @@
+.navbar {
+  position: fixed;
+  top: 1%;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  max-width: 850px;
+  margin: 0 auto;
+  border-radius: 8px;
+
+  .navContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .logoContainer {
+      text-decoration: none;
+  
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: white;
+      }
+    }
+  
+    .navLinks {
+      display: flex;
+      gap: 32px;
+    
+      .navLink {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: color 0.2s ease;
+    
+        &:hover {
+          color: white;
+        }
+      }
+    }
+
+    .authButtons {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      
+      .userEmail {
+        color: white;
+        font-size: 0.7rem;
+      }
+  
+      .downloadButton, .signupButton {
+        background: white;
+        color: black;
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+  
+        &:hover {
+          background: rgba(255, 255, 255, 0.9);
+        }
+      }
+  
+      .logoutButton {
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        color: rgba(255, 255, 255, 0.7);
+        
+        &:hover {
+          color: white;
+        }
+      }
+  
+      .loginButton {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: color 0.2s ease;
+  
+        &:hover {
+          color: white;
+        }
+      }
+    }
+  }
+}

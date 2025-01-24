@@ -1,5 +1,6 @@
 // TestimonialsGrid.tsx
 import Image from 'next/image'
+import styles from '../../css/main-page/LovedBy.module.scss'
 
 type Testimonial = {
   name: string;
@@ -49,34 +50,33 @@ const testimonials: Testimonial[] = [
 
 const LovedBy = () => {
   return (
-    <div className="bg-black text-white min-h-screen p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4">Loved by world-class devs</h2>
-          <p className="text-gray-400">Engineers all around the world reach for Cursor by choice.</p>
+    <div className={styles.lovedBy}>
+      <div className={styles.lovedByContainer}>
+        <div className={styles.lovedByHeader}>
+          <h2>Loved by world-class devs</h2>
+          <p>Engineers all around the world reach for Cursor by choice.</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={styles.lovedByGrid}>
           {testimonials.map((testimonial, index) => (
             <div 
               key={index}
-              className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 hover:border-zinc-700 transition-colors"
+              className={styles.lovedByCard}
             >
-              <p className="text-gray-300 mb-4">{testimonial.text}</p>
+              <p>{testimonial.text}</p>
               
-              <div className="flex items-center">
-                <div className="rounded-full overflow-hidden w-10 h-10 mr-3">
+              <div className={styles.lovedByProfile}>
+                <div className={styles.lovedByProfileImage}>
                   <Image
                     src={testimonial.avatar}
                     alt={testimonial.name}
                     width={40}
                     height={40}
-                    className="object-cover"
                   />
                 </div>
-                <div>
-                  <h3 className="font-medium">{testimonial.name}</h3>
-                  <p className="text-sm text-gray-500">{testimonial.company}</p>
+                <div className={styles.lovedByProfileInfo}>
+                  <h3>{testimonial.name}</h3>
+                  <p>{testimonial.company}</p>
                 </div>
               </div>
             </div>

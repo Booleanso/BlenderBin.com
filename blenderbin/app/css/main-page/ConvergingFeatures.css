@@ -4,6 +4,7 @@
   height: 200vh; /* Two viewport heights for scrolling */
   background-color: #000;
   color: #fff;
+  z-index: 10;
   
 }
 
