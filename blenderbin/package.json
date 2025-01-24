@@ -24,6 +24,7 @@
     "clsx": "latest",
     "firebase": "latest",
     "firebase-admin": "latest",
+    "firebase-functions": "latest",
     "framer-motion": "^12.0.1",
     "genkit": "latest",
     "html-to-react": "^1.7.0",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, Suspense } from 'react';
+import React, { useState, FormEvent, Suspense } from 'react';
 import { auth } from '../lib/firebase-client';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, AuthError } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -28,7 +28,7 @@ function AuthForm({
   error, 
   formData, 
   handleInputChange 
-}: AuthFormProps): JSX.Element {
+}: AuthFormProps): React.ReactElement {
   const searchParams = useSearchParams();
   
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -106,7 +106,7 @@ function AuthForm({
   );
 }
 
-export default function AuthPage(): JSX.Element {
+export default function AuthPage(): React.ReactElement {
   const router = useRouter();
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({

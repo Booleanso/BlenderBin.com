@@ -84,10 +84,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ sessionId: session.id });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Checkout error:', error);
     
-    if (error?.type === 'StripeInvalidRequestError') {
+    if (error instanceof Error && 'type' in error && error.type === 'StripeInvalidRequestError') {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 interface Position {
   x: number;
   y: number;
 }
 
-const DTFA = (): JSX.Element => {
+const DTFA = (): React.ReactElement => {
   const [position1, setPosition1] = useState<Position>({ x: 25, y: 25 });
   const [position2, setPosition2] = useState<Position>({ x: 75, y: 75 });
 

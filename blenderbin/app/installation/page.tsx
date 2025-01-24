@@ -1,4 +1,5 @@
 // app/guides/blender-addons/page.tsx
+import React from 'react';
 import type { Metadata } from 'next'
 
 
@@ -20,7 +21,7 @@ const TroubleshootingItem = ({
   </div>
 )
 
-export default function BlenderAddonGuidePage(): JSX.Element {
+export default function BlenderAddonGuidePage(): React.ReactElement {
   const troubleshootingItems = [
     {
       title: 'Addon Won\'t Install',

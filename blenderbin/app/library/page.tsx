@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Eye } from 'lucide-react';
+import Image from 'next/image';
 
 interface FileSection {
   premium: string[];
@@ -54,7 +55,7 @@ export default function LibraryPage() {
     <div>
       <a href={`/library/${file.name}`} className="block">
         <div className="bg-[#111111] rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow h-64 border border-gray-800">
-          <img
+          <Image
             src="/api/placeholder/400/320"
             alt={file.name}
             className="w-full h-full object-cover opacity-80"
