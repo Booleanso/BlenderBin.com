@@ -1,51 +1,101 @@
+import InfiniteScroll from '../ui/InfiniteScroll';
+  
+const items = [
+  { content: "Text Item 1" },
+  { content: <p>Paragraph Item 2</p> },
+  { content: "Text Item 3" },
+  { content: <p>Paragraph Item 4</p> },
+  { content: "Text Item 5" },
+  { content: <p>Paragraph Item 6</p> },
+  { content: "Text Item 7" },
+  { content: <p>Paragraph Item 8</p> },
+  { content: "Text Item 9" },
+  { content: <p>Paragraph Item 10</p> },
+  { content: "Text Item 11" },
+  { content: <p>Paragraph Item 12</p> },
+  { content: "Text Item 13" },
+  { content: <p>Paragraph Item 14</p> },
+];
+
 import React from "react";
 
 const TabComponent: React.FC = () => {
   const sections = [
     {
-      title: "Tab, tab, tab",
+      title: "Full Library of Blender Add-ons",
       description:
-        "Cursor lets you breeze through changes by predicting your next edit.",
-      video: "/path-to-your-video1.mp4",
+        "Access a wide range of Blender add-ons, from basic tools to advanced features.",
+      type: "scroll",
     },
     {
-      title: "Edit, edit, edit",
+      title: "Infinite Iterations",
       description:
-        "Seamlessly make changes to your projects with cutting-edge tools.",
+        "Limitless possibilities built with any add-on you choose.",
+      type: "video",
       video: "/path-to-your-video2.mp4",
     },
     {
-      title: "Focus, focus, focus",
-      description: "Stay in the flow with tools that anticipate your next move.",
-      video: "/path-to-your-video3.mp4",
+      title: "No More Huge Paywall",
+      description: "One subscription, and all the add-ons you need.",
+      type: "custom",
     },
-  ]; // Customize each section's title, description, and video path
+  ];
+
+  const renderSectionContent = (section: any, index: number) => {
+    const containerClasses = "rounded-lg overflow-hidden shadow-lg w-[80%] max-w-4xl h-[500px] flex items-center justify-center";
+
+    switch (section.type) {
+      case "scroll":
+        return (
+          <div className={containerClasses}>
+            <InfiniteScroll
+              items={items}
+              isTilted={false}
+              tiltDirection='left'
+              autoplay={true}
+              autoplaySpeed={0.1}
+              autoplayDirection="down"
+              pauseOnHover={true}
+            />
+          </div>
+        );
+      case "video":
+        return (
+          <div className={containerClasses}>
+            <video
+              className="w-full h-full rounded-lg"
+              controls
+              autoPlay
+              muted
+              loop
+            >
+              <source src={section.video} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        );
+      case "custom":
+        return (
+          <div className={containerClasses}>
+            <div className="text-center p-8">
+              <h2 className="text-3xl font-bold mb-4">Custom Content Here</h2>
+              <p>Replace this with your desired third section content</p>
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
-      {/* Stacked Sections */}
       <div className="space-y-16 w-full">
         {sections.map((section, index) => (
           <div key={index} className="flex flex-col items-center">
-            {/* Heading and Subheading */}
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold mb-4">{section.title}</h1>
               <p className="text-lg text-gray-400">{section.description}</p>
             </div>
-
-            {/* Gradient Container with Video */}
-            <div className="rounded-lg overflow-hidden shadow-lg w-[80%] max-w-4xl h-[500px] bg-gradient-to-br from-yellow-500 via-pink-500 to-purple-700 flex items-center justify-center">
-              <video
-                className="w-full h-full rounded-lg"
-                controls
-                autoPlay
-                muted
-                loop
-              >
-                <source src={section.video} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            </div>
+            {renderSectionContent(section, index)}
           </div>
         ))}
       </div>

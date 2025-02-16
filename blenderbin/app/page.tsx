@@ -16,7 +16,6 @@ import BentoBox from '../app/components/main-page/BentoBox';
 import ConvergingFeatures from '../app/components/main-page/ConvergingFeatures';
 
 
-
 import DTFA from "../app/components/main-page/DTFA";
 import VideoSection from "../app/components/main-page/VideoSection";
 
@@ -36,6 +35,14 @@ export default function Home() {
     <div className="body-main">
 
       <HeroSection scrollY={scrollY} />
+
+      {/* <Squares 
+      speed={0.5} 
+      squareSize={40}
+      direction='diagonal' // up, down, left, right, diagonal
+      borderColor='#fff'
+      hoverFillColor='#222'
+      /> */}
 
 
 
