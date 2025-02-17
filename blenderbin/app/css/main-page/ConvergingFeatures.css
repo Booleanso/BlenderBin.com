@@ -32,6 +32,10 @@
   color: inherit;
 }
 
+.scroll-reveal-container{
+  max-width: 500px;
+}
+
 .feature-card {
   position: absolute;
   width: 240px;

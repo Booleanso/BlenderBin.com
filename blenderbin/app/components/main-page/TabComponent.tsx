@@ -1,25 +1,88 @@
-import InfiniteScroll from '../ui/InfiniteScroll';
-  
-const items = [
-  { content: "Text Item 1" },
-  { content: <p>Paragraph Item 2</p> },
-  { content: "Text Item 3" },
-  { content: <p>Paragraph Item 4</p> },
-  { content: "Text Item 5" },
-  { content: <p>Paragraph Item 6</p> },
-  { content: "Text Item 7" },
-  { content: <p>Paragraph Item 8</p> },
-  { content: "Text Item 9" },
-  { content: <p>Paragraph Item 10</p> },
-  { content: "Text Item 11" },
-  { content: <p>Paragraph Item 12</p> },
-  { content: "Text Item 13" },
-  { content: <p>Paragraph Item 14</p> },
-];
+'use client';
 
-import React from "react";
+import React, { Suspense, useEffect, useState } from "react";
+import Image from 'next/image';
+import Link from 'next/link';
+import InfiniteScroll from '../ui/InfiniteScroll';
+
+interface S3Files {
+  premium: string[];
+  free: string[];
+  icons: Record<string, string>;
+}
 
 const TabComponent: React.FC = () => {
+  const [s3Files, setS3Files] = useState<S3Files>({ premium: [], free: [], icons: {} });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchS3Files = async () => {
+      try {
+        const [filesResponse, iconsResponse] = await Promise.all([
+          fetch('/api/aws-s3-listObjects'),
+          fetch('/api/aws-s3-listIcons')
+        ]);
+
+        if (!filesResponse.ok || !iconsResponse.ok) {
+          throw new Error('Failed to fetch S3 files or icons');
+        }
+
+        const filesData = await filesResponse.json();
+        const iconsData = await iconsResponse.json();
+
+        setS3Files({
+          premium: filesData.premium,
+          free: filesData.free,
+          icons: iconsData
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching S3 files:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchS3Files();
+  }, []);
+
+  const getDisplayName = (filename: string) => {
+    return filename
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[_-]/g, ' ')
+      .toUpperCase();
+  };
+
+  const getIconUrl = (filename: string) => {
+    const baseName = filename.replace(/\.[^/.]+$/, '');
+    return s3Files.icons[baseName] || null;
+  };
+
+  // Create combined items array for the infinite scroll
+  const scrollItems = [...s3Files.free, ...s3Files.premium].map(filename => ({
+    content: (
+      <div className="button-wrapper">
+        <div className="addon-link-container">
+          {getIconUrl(filename) && (
+            <div className="addon-icon-wrapper">
+              <Image
+                src={getIconUrl(filename)!}
+                alt={`${getDisplayName(filename)} icon`}
+                width={24}
+                height={24}
+              />
+            </div>
+          )}
+          <Link
+            href={`/library/${encodeURIComponent(filename)}`}
+            className="navbar-link"
+          >
+            {getDisplayName(filename)}
+          </Link>
+        </div>
+      </div>
+    )
+  }));
+
   const sections = [
     {
       title: "Full Library of Blender Add-ons",
@@ -48,15 +111,19 @@ const TabComponent: React.FC = () => {
       case "scroll":
         return (
           <div className={containerClasses}>
-            <InfiniteScroll
-              items={items}
-              isTilted={false}
-              tiltDirection='left'
-              autoplay={true}
-              autoplaySpeed={0.1}
-              autoplayDirection="down"
-              pauseOnHover={true}
-            />
+            {loading ? (
+              <div>Loading...</div>
+            ) : (
+              <InfiniteScroll
+                items={scrollItems}
+                isTilted={false}
+                tiltDirection='left'
+                autoplay={true}
+                autoplaySpeed={0.1}
+                autoplayDirection="down"
+                pauseOnHover={true}
+              />
+            )}
           </div>
         );
       case "video":
@@ -77,10 +144,7 @@ const TabComponent: React.FC = () => {
       case "custom":
         return (
           <div className={containerClasses}>
-            <div className="text-center p-8">
-              <h2 className="text-3xl font-bold mb-4">Custom Content Here</h2>
-              <p>Replace this with your desired third section content</p>
-            </div>
+
           </div>
         );
     }

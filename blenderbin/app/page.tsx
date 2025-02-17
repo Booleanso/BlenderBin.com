@@ -1,7 +1,6 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
-// import Image from "next/image";
 
 import "./css/main-page/about-section.css";
 import "./css/main-page/blender-screen.css";
@@ -12,7 +11,6 @@ import TabComponent from '../app/components/main-page/TabComponent';
 import FeaturesSection from '../app/components/main-page/FeatureSection';
 import Newsletter from '../app/components/main-page/Newsletter';
 import LovedBy from '../app/components/main-page/LovedBy';
-import BentoBox from '../app/components/main-page/BentoBox';
 import ConvergingFeatures from '../app/components/main-page/ConvergingFeatures';
 
 
@@ -34,17 +32,7 @@ export default function Home() {
   return (
     <div className="body-main">
 
-      <HeroSection scrollY={scrollY} />
-
-      {/* <Squares 
-      speed={0.5} 
-      squareSize={40}
-      direction='diagonal' // up, down, left, right, diagonal
-      borderColor='#fff'
-      hoverFillColor='#222'
-      /> */}
-
-
+      <HeroSection scrollY={scrollY}/>
 
       <ConvergingFeatures />
 
@@ -53,8 +41,6 @@ export default function Home() {
       <TabComponent />
 
       <FeaturesSection />
-
-      <BentoBox />
 
       <VideoSection />
 
