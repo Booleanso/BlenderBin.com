@@ -1,4 +1,6 @@
 import styles from '../../css/main-page/FeatureSection.module.scss';
+import SpotlightCard from '../ui/SpotlightCard/SpotlightCard';
+  
 
 const FeatureSection = () => {
   return (
@@ -10,29 +12,27 @@ const FeatureSection = () => {
       </div>
       
       <div className={styles.featureGrid}>
-        <div className={styles.featureCard}>
-          <h3>Frontier Intelligence</h3>
-          <p>Powered by a mix of purpose-built and frontier models. Blender is smart and fast.</p>
-          <div className={styles.featureImage}>
-            {/* Add your triangle/prism image here */}
-          </div>
-        </div>
 
-        <div className={styles.featureCard}>
-          <h3>Feels Familiar</h3>
-          <p>Import all your extensions, themes, and keybindings in one click.</p>
-          <div className={styles.featureImage}>
-            {/* Add your window/blocks image here */}
-          </div>
-        </div>
+        <SpotlightCard className="custom-spotlight-card" spotlightColor="rgba(0, 229, 255, 0.2)">
+          <h3>7 Day Free Trial</h3>
+          <p>Experience our premium add-ons first hand, for free. Cancel your subscription before 7 days if you do not want to get charged.</p>
+          <div className={styles.featureImage}></div>
+        </SpotlightCard>
+          
 
-        <div className={styles.featureCard}>
-          <h3>Privacy Options</h3>
-          <p>If you enable Privacy Mode, your code is never stored remotely. Blender is SOC 2 certified.</p>
-          <div className={styles.featureImage}>
-            {/* Add your sphere/circle image here */}
-          </div>
-        </div>
+
+
+        <SpotlightCard className="custom-spotlight-card" spotlightColor="rgba(0, 229, 255, 0.2)">
+          <h3>We Believe in Over-whelming Value.</h3>
+          <p>One subscription, access to all of our add-ons. 200+ add-ons after year two.</p>
+          <div className={styles.featureImage}></div>
+        </SpotlightCard>
+
+        <SpotlightCard className="custom-spotlight-card" spotlightColor="rgba(0, 229, 255, 0.2)">
+          <h3>Built With Security</h3>
+          <p>Add-ons served instantly using an experimental version of WebSocket Secure. Creator's program coming soon, with the ability to host your own add-on on BlenderBin.</p>
+          <div className={styles.featureImage}></div>
+        </SpotlightCard>
       </div>
     </section>
   );

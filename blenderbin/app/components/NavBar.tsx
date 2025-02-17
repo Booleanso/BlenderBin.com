@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '../lib/firebase-client';
-import { User } from 'firebase/auth';
+import { User, updateEmail } from 'firebase/auth';
 import { loadStripe } from '@stripe/stripe-js';
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
@@ -24,6 +24,9 @@ const NavBar = () => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
     isSubscribed: false
   });
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -141,6 +144,25 @@ const NavBar = () => {
     }
   };
 
+  const handleEmailUpdate = async () => {
+    try {
+      if (!user) return;
+      
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        setEmailError('Please enter a valid email address');
+        return;
+      }
+
+      await updateEmail(user, newEmail);
+      setEditingEmail(false);
+      setEmailError('');
+      setNewEmail('');
+    } catch (error: any) {
+      setEmailError(error.message || 'Failed to update email');
+      console.error('Error updating email:', error);
+    }
+  };
+
   if (loading) {
     return <div className={styles.loading}>Loading...</div>;
   }
@@ -155,9 +177,9 @@ const NavBar = () => {
 
         {/* Main navigation */}
         <div className={styles.navLinks}>
-          <Link href="/features" className={styles.navLink}>Features</Link>
-          <Link href="/pricing" className={styles.navLink}>Pricing</Link>
-          <Link href="/docs" className={styles.navLink}>Docs</Link>
+          {/* <Link href="/features" className={styles.navLink}>Features</Link> */}
+          {/* <Link href="/pricing" className={styles.navLink}>Pricing</Link> */}
+          {/* <Link href="/docs" className={styles.navLink}>Docs</Link> */}
         </div>
 
         {/* Auth section */}
@@ -167,22 +189,22 @@ const NavBar = () => {
               <span className={styles.userEmail}>{user.email}</span>
 
               {subscriptionStatus.isSubscribed ? (
-                <div>
+                <div className={styles.authdiv}>
                   <button onClick={handleRedownload} className={styles.downloadButton}>
                     Re-Download
                   </button>
-                  <button onClick={() => setProfileModalOpen(true)} className="navbar-button">Profile</button>
+                  <button onClick={() => setProfileModalOpen(true)} className={styles.downloadButton}>Profile</button>
 
                 </div>
 
               ) : (
                 <div>
-                  <button onClick={() => setModalOpen(true)} className="navbar-button">Get Started</button>
+                  <button onClick={() => setModalOpen(true)} className={styles.downloadButton}>Get Started</button>
                 </div>
                 
                 
               )}
-              <button onClick={handleLogout} className={styles.logoutButton}>
+              <button onClick={handleLogout} className={styles.downloadButton}>
                 Logout
               </button>
             </>
@@ -244,18 +266,55 @@ const NavBar = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Account Information</h3>
-              <p className="text-sm text-gray-500">Email: {user?.email}</p>
+              {editingEmail ? (
+                <div className="space-y-2">
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="New email address"
+                    className="w-full px-3 py-2 border rounded-md text-sm"
+                  />
+                  {emailError && (
+                    <p className="text-sm text-red-500">{emailError}</p>
+                  )}
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleEmailUpdate}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingEmail(false);
+                        setEmailError('');
+                        setNewEmail('');
+                      }}
+                      className="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-md text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-500">Email: {user?.email}</p>
+                  <button
+                    onClick={() => {
+                      setEditingEmail(true);
+                      setNewEmail(user?.email || '');
+                    }}
+                    className="text-blue-600 hover:text-blue-700 text-sm"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )}
               <p className="text-sm text-gray-500">Member since: {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}</p>
             </div>
             
             <div className="space-y-2">
-              <button
-                onClick={() => router.push('/settings/profile')}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Edit Profile Settings
-              </button>
-              
               <button
                 onClick={handleUnsubscribe}
                 className="w-full bg-red-100 hover:bg-red-200 text-red-900 px-4 py-2 rounded-md text-sm font-medium"

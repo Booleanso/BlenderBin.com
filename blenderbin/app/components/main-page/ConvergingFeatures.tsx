@@ -4,6 +4,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import '../../css/main-page/ConvergingFeatures.css';
+import ScrollReveal from '../ScrollReveal/ScrollReveal';
+
 
 interface Addon {
   id: number;
@@ -120,8 +122,12 @@ const ConvergingFeatures = () => {
 
   return (
     <div ref={sectionRef} className="converging-section">
+      
       <div className="scroll-container">
+        
         <div className="features-container">
+          
+
           {addons.map((addon) => (
             <Link
               key={addon.id}
