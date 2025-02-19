@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { FC } from 'react';
-import styles from '@/app/css/main-page/Newsletter.module.scss';
+import styles from './Newsletter.module.scss';
 
 interface NewsletterProps {
   title: string;

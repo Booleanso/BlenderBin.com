@@ -1,4 +1,4 @@
-import styles from '../../css/main-page/bento-box.module.scss'
+import styles from './bento-box.module.scss'
 import Image from 'next/image'
 
 interface BentoFeature {

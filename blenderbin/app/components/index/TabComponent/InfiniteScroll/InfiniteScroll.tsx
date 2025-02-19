@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { gsap } from "gsap";
 import { Observer } from "gsap/Observer";
-import "../../css/ui/InfiniteScroll.css";
+import "./InfiniteScroll.css";
 
 gsap.registerPlugin(Observer);
 

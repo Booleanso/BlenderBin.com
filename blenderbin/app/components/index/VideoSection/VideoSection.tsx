@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useEffect, useState } from "react";
-import "../../css/main-page/video-section.css";
+import "./video-section.css";
 
 interface Position {
   x: number;

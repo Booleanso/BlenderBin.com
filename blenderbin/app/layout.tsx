@@ -1,7 +1,7 @@
 // import NavBar from "./components/BlenderPanel";
-import NavBar from "./components/NavBar";
+import NavBar from "./components/NavBar/NavBar";
 // import Workspaces from "./components/Workspaces";
-import Footer from "./components/Footer";
+import Footer from "./components/Footer/Footer";
 
 
 import type { Metadata } from "next";

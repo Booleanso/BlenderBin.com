@@ -1,9 +1,10 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
-import InfiniteScroll from '../ui/InfiniteScroll';
+import InfiniteScroll from './InfiniteScroll/InfiniteScroll';
+import './TabComponent.css';
 
 interface S3Files {
   premium: string[];
@@ -94,8 +95,8 @@ const TabComponent: React.FC = () => {
       title: "Infinite Iterations",
       description:
         "Limitless possibilities built with any add-on you choose.",
-      type: "video",
-      video: "/path-to-your-video2.mp4",
+      type: "gif",
+      gifPath: "/public/gif/iterations.gif",
     },
     {
       title: "No More Huge Paywall",
@@ -105,45 +106,42 @@ const TabComponent: React.FC = () => {
   ];
 
   const renderSectionContent = (section: any, index: number) => {
-    const containerClasses = "rounded-lg overflow-hidden shadow-lg w-[80%] max-w-4xl h-[500px] flex items-center justify-center";
-
     switch (section.type) {
       case "scroll":
         return (
-          <div className={containerClasses}>
+          <div className="content-container">
             {loading ? (
               <div>Loading...</div>
             ) : (
               <InfiniteScroll
                 items={scrollItems}
-                isTilted={false}
-                tiltDirection='left'
+                isTilted={true}
+                tiltDirection='right'
                 autoplay={true}
-                autoplaySpeed={0.1}
-                autoplayDirection="down"
+                autoplaySpeed={0.5}
+                autoplayDirection="up"
                 pauseOnHover={true}
               />
             )}
           </div>
         );
-      case "video":
+      case "gif":
         return (
-          <div className={containerClasses}>
-            <video
-              className="w-full h-full rounded-lg"
-              controls
-              autoPlay
-              muted
-              loop
-            >
-              <source src={section.video} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+          <div className="content-container">
+            <Image
+              src={section.gifPath}
+              alt="Infinite Iterations"
+              width={500}
+              height={300}
+              className="gif-content"
+            />
           </div>
         );
       case "custom":
         return (
-          <div className={containerClasses}>
+          <div className="content-container">
+
+
 
           </div>
         );
@@ -151,13 +149,13 @@ const TabComponent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
-      <div className="space-y-16 w-full">
+    <div className="tab-container">
+      <div className="sections-container">
         {sections.map((section, index) => (
-          <div key={index} className="flex flex-col items-center">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-4">{section.title}</h1>
-              <p className="text-lg text-gray-400">{section.description}</p>
+          <div key={index} className="section-wrapper">
+            <div className="section-header">
+              <h1 className="section-title">{section.title}</h1>
+              <p className="section-description">{section.description}</p>
             </div>
             {renderSectionContent(section, index)}
           </div>

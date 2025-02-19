@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '../lib/firebase-client';
+import { auth } from '../../lib/firebase-client';
 import { User, updateEmail } from 'firebase/auth';
 import { loadStripe } from '@stripe/stripe-js';
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import styles from '../css/NavBar.module.scss';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
+import styles from './NavBar.module.scss';
 
 interface SubscriptionStatus {
   isSubscribed: boolean;

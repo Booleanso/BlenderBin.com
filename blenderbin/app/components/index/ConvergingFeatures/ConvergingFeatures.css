@@ -1,8 +1,8 @@
 /* ConvergingFeatures.css */
 .converging-section {
   position: relative;
-  height: 200vh; /* Two viewport heights for scrolling */
-  background-color: #000;
+  height: 300vh; /* Two viewport heights for scrolling */
+  background-color: #00000000;
   color: #fff;
   z-index: 10;
   
@@ -40,11 +40,9 @@
   position: absolute;
   width: 240px;
   padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(8px);
   border-radius: 1rem;
   transition: transform 0.3s ease, opacity 0.3s ease, background 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
   will-change: transform, opacity;
 }
 
@@ -93,12 +91,11 @@
   transform: translate(-50%, -50%);
   z-index: 10;
   width: 600px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0);
   border-radius: 1.5rem;
   overflow: hidden;
   transition: all 0.5s ease;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
   will-change: transform, opacity;
 }
 
@@ -125,7 +122,15 @@
   line-height: 1.6;
 }
 
-
+.story-title {
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.5s ease;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-width: 600px;
+  padding: 0 20px;
+}
 
 /* Media queries */
 @media (max-width: 1024px) {

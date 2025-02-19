@@ -2,20 +2,22 @@
 
 import { useEffect, useState } from "react";
 
-import "./css/main-page/about-section.css";
-import "./css/main-page/blender-screen.css";
-import "./css/main-page/scroll-addons.css";
+import "./css/index/about-section.css";
+import "./css/index/blender-screen.css";
+import "./css/index/scroll-addons.css";
 
-import HeroSection from '../app/components/main-page/HeroSection';
-import TabComponent from '../app/components/main-page/TabComponent';
-import FeaturesSection from '../app/components/main-page/FeatureSection';
-import Newsletter from '../app/components/main-page/Newsletter';
-import LovedBy from '../app/components/main-page/LovedBy';
-import ConvergingFeatures from '../app/components/main-page/ConvergingFeatures';
+import HeroSection from './components/index/HeroSection/HeroSection';
+import TabComponent from './components/index/TabComponent/TabComponent';
+import FeaturesSection from './components/index/FeatureSection/FeatureSection';
+import Newsletter from './components/index/Newsletter/Newsletter';
+import LovedBy from './components/index/LovedBy/LovedBy';
+import ConvergingFeatures from './components/index/ConvergingFeatures/ConvergingFeatures';
+import FAQ from './components/FAQ/FAQ';
+import Trusted from '../app/components/index/Trusted/Trusted';
 
 
-import DTFA from "../app/components/main-page/DTFA";
-import VideoSection from "../app/components/main-page/VideoSection";
+import DTFA from "./components/index/DTFA/DTFA";
+import VideoSection from "./components/index/VideoSection/VideoSection";
 
 export default function Home() {
   const [scrollY, setScrollY] = useState(0);
@@ -33,6 +35,8 @@ export default function Home() {
     <div className="body-main">
 
       <HeroSection scrollY={scrollY}/>
+ 
+      <Trusted />
 
       <ConvergingFeatures />
 
@@ -44,8 +48,6 @@ export default function Home() {
 
       <VideoSection />
 
-      <BentoBox />
-
       <Newsletter
         title="Iterating with Shadow Workspaces"
         description="Hidden windows and kernel-level folder proxies to let AIs iterate on code without affecting the user."
@@ -53,7 +55,10 @@ export default function Home() {
         readTime="19 minutes"
       />
 
+      <FAQ />
       <LovedBy />
+
+      
       
       
 

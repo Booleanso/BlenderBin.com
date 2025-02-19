@@ -3,8 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import '../../css/main-page/ConvergingFeatures.css';
-import ScrollReveal from '../ScrollReveal/ScrollReveal';
+import './ConvergingFeatures.css';
 
 
 interface Addon {
@@ -102,14 +101,26 @@ const ConvergingFeatures = () => {
   }, []);
 
   const getAddonStyle = (addon: Addon) => {
-    const currentX = addon.startPosition.x * (1 - scrollProgress);
-    const currentY = addon.startPosition.y * (1 - scrollProgress);
-    const scale = 1 - (scrollProgress * 0.3);
-    const opacity = scrollProgress > 0.8 ? 1 - ((scrollProgress - 0.8) * 5) : 1;
+    // Normalize the progress to start at 50% scroll
+    const normalizedProgress = scrollProgress < 0.5 ? 0 : (scrollProgress - 0.5) * 2;
+    
+    const currentX = addon.startPosition.x * (1 - normalizedProgress);
+    const currentY = addon.startPosition.y * (1 - normalizedProgress);
+    const scale = 1 - (normalizedProgress * 0.3);
+    
+    // New opacity calculation:
+    // Start at 0 opacity and fade in when second title appears (50% scroll)
+    // Then fade out after 80% total scroll
+    const fadeInOpacity = Math.min(1, (scrollProgress - 0.5) * 5); // 0 to 1 starting at 50% scroll
+    const fadeOutOpacity = scrollProgress > 0.8 ? 1 - ((scrollProgress - 0.8) * 5) : 1;
+    const opacity = fadeInOpacity * fadeOutOpacity;
     
     return {
-      transform: `translate(${currentX}px, ${currentY}px) scale(${scale})`,
-      opacity
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      transform: `translate(calc(-50% + ${currentX}px), calc(-50% + ${currentY}px)) scale(${scale})`,
+      opacity: scrollProgress < 0.5 ? 0 : opacity
     };
   };
 
@@ -120,14 +131,62 @@ const ConvergingFeatures = () => {
       .toUpperCase();
   };
 
+  // Add function to determine which title to show
+  const getCurrentTitle = () => {
+    if (scrollProgress < 0.1) {
+      return "";  // Start empty
+    } else if (scrollProgress < 0.5) {
+      return "First, we had one idea.";
+    } else if (scrollProgress < 0.8) {
+      return "Then, we had multiple.";
+    } else {
+      return "So, we created a hub to house them.";
+    }
+  };
+
   return (
     <div ref={sectionRef} className="converging-section">
-      
       <div className="scroll-container">
-        
         <div className="features-container">
-          
+          {/* Add the title above the center card */}
+          <div 
+            className="story-title"
+            style={{
+              position: 'absolute',
+              top: '30%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 20,
+              textAlign: 'center',
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: '#fff',
+              opacity: scrollProgress > 0.1 ? 1 : 0,
+              transition: 'opacity 0.3s ease'
+            }}
+          >
+            {getCurrentTitle()}
+          </div>
 
+          {/* Existing center card */}
+          <div 
+            className="center-card"
+            style={{
+              opacity: scrollProgress > 0.3 ? 1 : 0,
+              transform: `translate(-49%, -40%) scale(${0.2 + (scrollProgress * 0.2)})`
+            }}
+          >
+            <Image
+              src="/blenderbin-zip.png"
+              alt="BlenderBin Addon Manager"
+              width={500}
+              height={500}
+              className="center-image"
+              priority
+            />
+          </div>
+
+          {/* Existing addons mapping */}
           {addons.map((addon) => (
             <Link
               key={addon.id}
@@ -156,27 +215,6 @@ const ConvergingFeatures = () => {
               </div>
             </Link>
           ))}
-        </div>
-        
-        <div 
-          className="center-card"
-          style={{
-            opacity: scrollProgress > 0.3 ? 1 : 0,
-            transform: `translate(-50%, -50%) scale(${0.8 + (scrollProgress * 0.2)})`
-          }}
-        >
-          <Image
-            src="/logo.png"
-            alt="BlenderBin"
-            width={500}
-            height={300}
-            className="center-image"
-            priority
-          />
-          <div className="card-content">
-            <h2>Your Blender Addons Hub</h2>
-            <p>All your favorite addons in one place</p>
-          </div>
         </div>
       </div>
     </div>

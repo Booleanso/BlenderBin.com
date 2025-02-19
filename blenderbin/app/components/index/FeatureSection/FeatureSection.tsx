@@ -1,13 +1,13 @@
-import styles from '../../css/main-page/FeatureSection.module.scss';
-import SpotlightCard from '../ui/SpotlightCard/SpotlightCard';
+import styles from './FeatureSection.module.scss';
+import SpotlightCard from '../../ui/SpotlightCard/SpotlightCard';
   
 
 const FeatureSection = () => {
   return (
     <section className={styles.featureSection}>
       <div className={styles.featureHeader}>
-        <h2>Build software faster</h2>
-        <p>Intelligent, fast, and familiar, Blender is the best way to code with AI.</p>
+        <h2>Create 3D faster</h2>
+        <p>With an infinite number of add-ons at your disposal.</p>
         <button className={styles.seeMoreBtn}>SEE MORE FEATURES</button>
       </div>
       
@@ -30,7 +30,7 @@ const FeatureSection = () => {
 
         <SpotlightCard className="custom-spotlight-card" spotlightColor="rgba(0, 229, 255, 0.2)">
           <h3>Built With Security</h3>
-          <p>Add-ons served instantly using an experimental version of WebSocket Secure. Creator's program coming soon, with the ability to host your own add-on on BlenderBin.</p>
+          <p>Add-ons served instantly using an experimental version of WebSocket Secure. Creators program coming soon, with the ability to host your own add-on on BlenderBin.</p>
           <div className={styles.featureImage}></div>
         </SpotlightCard>
       </div>
