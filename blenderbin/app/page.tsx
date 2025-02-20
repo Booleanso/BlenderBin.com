@@ -9,11 +9,12 @@ import "./css/index/scroll-addons.css";
 import HeroSection from './components/index/HeroSection/HeroSection';
 import TabComponent from './components/index/TabComponent/TabComponent';
 import FeaturesSection from './components/index/FeatureSection/FeatureSection';
-import Newsletter from './components/index/Newsletter/Newsletter';
+// import Newsletter from './components/index/Newsletter/Newsletter';
 import LovedBy from './components/index/LovedBy/LovedBy';
 import ConvergingFeatures from './components/index/ConvergingFeatures/ConvergingFeatures';
 import FAQ from './components/FAQ/FAQ';
-import Trusted from '../app/components/index/Trusted/Trusted';
+// import Trusted from '../app/components/index/Trusted/Trusted';
+import Subscriptions from './components/index/Subscriptions/Subscriptions';
 
 
 import DTFA from "./components/index/DTFA/DTFA";
@@ -36,26 +37,35 @@ export default function Home() {
 
       <HeroSection scrollY={scrollY}/>
  
-      <Trusted />
+      {/* <Trusted /> */}
 
       <ConvergingFeatures />
 
       <DTFA />
 
       <TabComponent />
-
+      <VideoSection />
       <FeaturesSection />
 
-      <VideoSection />
+      
 
-      <Newsletter
+      {/* <Newsletter
         title="Iterating with Shadow Workspaces"
         description="Hidden windows and kernel-level folder proxies to let AIs iterate on code without affecting the user."
         author="Arvid"
         readTime="19 minutes"
-      />
+      /> */}
+
+      
+
+      <section id="subscriptions">
+        <Subscriptions />
+      </section>
 
       <FAQ />
+
+      
+
       <LovedBy />
 
       

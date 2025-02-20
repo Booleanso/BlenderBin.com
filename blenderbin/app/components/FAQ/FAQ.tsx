@@ -55,16 +55,24 @@ const FAQ = () => {
 
   const faqData = [
     {
-      question: 'Is it accessible?',
-      answer: 'Yes, this FAQ component is built with accessibility in mind, using semantic HTML and ARIA attributes.',
+      question: 'How do I use BlenderBin?',
+      answer: 'All you have to do is install it as a normal Blender addon! We provide instructions on how to do this on the Download page.',
     },
     {
-      question: 'Is it styled?',
-      answer: 'Yes, this component is styled using Tailwind CSS and matches the dark theme shown in the image.',
+      question: 'How do I use each addon you guys have?',
+      answer: 'Each addon has its own button in the BlenderBin panel. To see all available add-ons, click "Add-on Browser" on the BlenderBin add-on panel.',
     },
     {
-      question: 'Is it animated?',
-      answer: 'Yes, this component uses Framer Motion for smooth animations when opening and closing the answers.',
+      question: 'How many add-ons do you have?',
+      answer: 'We currently are in the single digits, but aim to grow this count past 200+ by early 2026.',
+    },
+    {
+      question: 'How many people are on your team?',
+      answer: 'We actually only have two people on our team, and are willing to hire as we grow. Applicants welcome!',
+    },
+    {
+      question: 'How much is BlenderBin?',
+      answer: 'A BlenderBin basic subscription will be $14 a month, or $140 a year. You can cancel anytime.',
     },
   ]
 

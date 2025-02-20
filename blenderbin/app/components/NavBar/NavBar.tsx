@@ -6,6 +6,11 @@ import Link from 'next/link';
 import { auth } from '../../lib/firebase-client';
 import { User, updateEmail } from 'firebase/auth';
 import { loadStripe } from '@stripe/stripe-js';
+import Image from 'next/image';
+import { storage } from '../../lib/firebase-client';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { s3Client } from '../../lib/S3';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import styles from './NavBar.module.scss';
@@ -19,7 +24,6 @@ const NavBar = () => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
     isSubscribed: false
@@ -27,6 +31,7 @@ const NavBar = () => {
   const [editingEmail, setEditingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [profilePicUrl, setProfilePicUrl] = useState<string>('');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -59,6 +64,24 @@ const NavBar = () => {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const fetchProfilePic = async () => {
+      if (user?.email) {
+        try {
+          const response = await fetch(`/api/profile-picture?email=${encodeURIComponent(user.email)}`);
+          if (response.ok) {
+            const { url } = await response.json();
+            setProfilePicUrl(url);
+          }
+        } catch (error) {
+          console.error('Error fetching profile picture:', error);
+        }
+      }
+    };
+
+    fetchProfilePic();
+  }, [user?.email]);
 
   const handleLogout = async () => {
     try {
@@ -163,6 +186,43 @@ const NavBar = () => {
     }
   };
 
+  const scrollToSubscriptions = () => {
+    const element = document.getElementById('subscriptions');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleProfilePicUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.email) return;
+
+    try {
+      // Create a buffer from the file
+      const buffer = await file.arrayBuffer();
+      const fileName = `FRONTEND/USERS/PROFILE_PICTURES/${encodeURIComponent(user.email)}`;
+
+      // Upload to S3
+      const command = new PutObjectCommand({
+        Bucket: process.env.NEXT_PUBLIC_AWS_S3_BUCKET!,
+        Key: fileName,
+        Body: buffer,
+        ContentType: file.type,
+      });
+
+      await s3Client.send(command);
+
+      // Fetch and update the new URL
+      const response = await fetch(`/api/profile-picture?email=${encodeURIComponent(user.email)}`);
+      if (response.ok) {
+        const { url } = await response.json();
+        setProfilePicUrl(url);
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+    }
+  };
+
   if (loading) {
     return <div className={styles.loading}>Loading...</div>;
   }
@@ -172,7 +232,13 @@ const NavBar = () => {
       <div className={styles.navContainer}>
         {/* Logo and brand */}
         <Link href="/" className={styles.logoContainer}>
-          <span className={styles.logo}>BlenderBin</span>
+          <Image
+            src="/blenderbinlogo.png"
+            alt="BlenderBin Logo"
+            width={32}
+            height={32}
+            className={styles.logoImage}
+          />
         </Link>
 
         {/* Main navigation */}
@@ -186,23 +252,42 @@ const NavBar = () => {
         <div className={styles.authButtons}>
           {user ? (
             <>
-              <span className={styles.userEmail}>{user.email}</span>
+              {/* <span className={styles.userEmail}>{user.email}</span> */}
 
               {subscriptionStatus.isSubscribed ? (
                 <div className={styles.authdiv}>
+          
+                  <button 
+                    onClick={() => setProfileModalOpen(true)} 
+                    className={styles.profileButton}
+                  >
+                    {profilePicUrl ? (
+                      <Image
+                        src={profilePicUrl}
+                        alt="Profile"
+                        width={40}
+                        height={40}
+                      />
+                    ) : (
+                      <Image
+                        src="/default-profile.svg"
+                        alt="Default Profile"
+                        width={40}
+                        height={40}
+                      />
+                    )}
+                  </button>
+
                   <button onClick={handleRedownload} className={styles.downloadButton}>
                     Re-Download
                   </button>
-                  <button onClick={() => setProfileModalOpen(true)} className={styles.downloadButton}>Profile</button>
+
 
                 </div>
-
               ) : (
                 <div>
-                  <button onClick={() => setModalOpen(true)} className={styles.downloadButton}>Get Started</button>
+                  <button onClick={scrollToSubscriptions} className={styles.downloadButton}>Get Started</button>
                 </div>
-                
-                
               )}
               <button onClick={handleLogout} className={styles.downloadButton}>
                 Logout
@@ -217,43 +302,6 @@ const NavBar = () => {
         </div>
       </div>
 
-      {/* Get Started Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Subscribe to Our Product</DialogTitle>
-            <DialogDescription>
-              Get access to our premium boilerplate and start building amazing applications today!
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-sm text-gray-500">
-              <h3 className="font-medium text-gray-900">What is included:</h3>
-              <ul className="list-disc pl-5 mt-2 space-y-2">
-                <li>Complete Next.js 14 boilerplate with App Router</li>
-                <li>Firebase Authentication integration</li>
-                <li>Stripe subscription setup</li>
-                <li>Tailwind CSS and shadcn/ui components</li>
-                <li>TypeScript configuration</li>
-                <li>Free updates and support</li>
-              </ul>
-            </div>
-            <div className="text-lg font-semibold">
-              Price: $49.99/one-time
-            </div>
-            <button
-              onClick={() => {
-                setModalOpen(false);
-                handleCheckout();
-              }}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Purchase Now
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Profile Modal */}
       <Dialog open={profileModalOpen} onOpenChange={setProfileModalOpen}>
         <DialogContent className="sm:max-w-md">
@@ -264,6 +312,34 @@ const NavBar = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Profile Picture</h3>
+              <div className="flex items-center space-x-4">
+                <div className="w-20 h-20 rounded-full overflow-hidden">
+                  {profilePicUrl ? (
+                    <Image
+                      src={profilePicUrl}
+                      alt="Profile"
+                      width={80}
+                      height={80}
+                    />
+                  ) : (
+                    <Image
+                      src="/default-profile.svg"
+                      alt="Default Profile"
+                      width={80}
+                      height={80}
+                    />
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePicUpload}
+                  className="text-sm"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Account Information</h3>
               {editingEmail ? (

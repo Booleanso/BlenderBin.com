@@ -1,10 +1,19 @@
 .video-section {
     position: relative;
     display: flex;
+    flex-direction: column;
     height: 650px;
     align-items: center;
+    justify-content: flex-start;
     background-color: black;
-    padding: 4rem 1rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.5s ease;
+    padding-top: 2rem;
+  }
+  
+  .video-section.expanded {
+    height: 90vh;
   }
   
   .grid-background {
@@ -27,11 +36,18 @@
   }
   
   .content-wrapper {
-    margin: 0 auto;
-    display: grid;
-    max-width: 72rem;
-    grid-template-columns: 1fr;
-    gap: 2rem;
+    position: relative;
+    z-index: 10;
+    max-width: 1600px;
+    width: 100%;
+    text-align: center;
+    padding: 0 1rem;
+    margin-bottom: 2rem;
+    transition: all 0.5s ease;
+  }
+  
+  .video-section.expanded .content-wrapper {
+    max-width: 90%;
   }
   
   @media (min-width: 1024px) {
@@ -43,13 +59,15 @@
   .text-content {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    align-items: center;
+    gap: 1rem;
   }
   
   .heading {
-    font-size: 3rem;
+    font-size: 3.75rem;
     font-weight: 700;
     color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
   }
   
   @media (min-width: 768px) {
@@ -59,8 +77,10 @@
   }
   
   .description {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     color: rgb(209, 213, 219);
+    max-width: 600px;
+    margin: 0 auto;
   }
   
   @media (min-width: 768px) {
@@ -86,10 +106,22 @@
   .video-container {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    height: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
     overflow: hidden;
-    border-radius: 0.5rem;
     background-color: rgb(17, 24, 39);
+    transition: all 0.5s ease;
+  }
+  
+  .video-section.expanded .video-container {
+    max-width: 90%;
+  }
+  
+  .video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   
   .pause-button {

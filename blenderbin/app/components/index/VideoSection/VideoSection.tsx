@@ -11,6 +11,7 @@ interface Position {
 
 const VideoSection = () => {
   const [position, setPosition] = useState<Position>({ x: 75, y: 50 });
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     let frame: number;
@@ -30,48 +31,46 @@ const VideoSection = () => {
   }, []);
 
   return (
-    <section className="video-section">
-      {/* Grid background */}
-      <div className="grid-background">
-        <div className="grid-container">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="grid-line" />
-          ))}
+    <section 
+      className={`video-section ${isExpanded ? 'expanded' : ''}`}
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
+      {/* Content Above Video */}
+      <div className="content-wrapper">
+        <div className="text-content">
+          <h2 className="heading">
+            Coming up next: Decal Add-on
+          </h2>
+          <p className="description">
+            Experience the next evolution in Blender add-ons with our upcoming Decal system.
+            Click to expand and see more details.
+          </p>
         </div>
       </div>
 
-      <div className="content-wrapper">
-        {/* Text Content */}
-        <div className="text-content">
-          <h2 className="heading">
-            Experience ease like never before.
-          </h2>
-          <p className="description">
-            Easy, user-friendly Blender UI to help you with complex projects,
-            without having to put the complex in complex.
-          </p>
-          <button className="preview-button">
-            View Plugin Preview
-          </button>
-        </div>
-
-        {/* Video Placeholder */}
-        <div className="video-container">
-          <div className="pause-button">
-            <svg
-              className="pause-icon"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
+      {/* Video Container */}
+      <div className="video-container">
+        <video
+          autoPlay
+          muted
+          loop
+          className="video"
+          src="/index/VideoSection/videosection.mp4"
+        />
+        <div className="pause-button">
+          <svg
+            className="pause-icon"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
         </div>
       </div>
 

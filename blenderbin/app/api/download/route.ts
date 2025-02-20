@@ -10,24 +10,8 @@ export async function GET(request: Request) {
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Check subscription status in the correct collection
-    const subscriptionQuery = await db
-      .collection('customers')
-      .doc(userId)
-      .collection('subscriptions')
-      .where('status', 'in', ['active', 'trialing'])
-      .limit(1)
-      .get();
-
-    if (subscriptionQuery.empty) {
-      return NextResponse.json(
-        { error: 'No active subscription found' },
-        { status: 403 }
+        { error: 'Authentication required. Please sign in.' },
+        { status: 401 }
       );
     }
 

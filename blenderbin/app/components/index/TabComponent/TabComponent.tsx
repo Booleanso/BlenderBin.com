@@ -92,16 +92,17 @@ const TabComponent: React.FC = () => {
       type: "scroll",
     },
     {
-      title: "Infinite Iterations",
+      title: "Familiar Interface",
       description:
-        "Limitless possibilities built with any add-on you choose.",
-      type: "gif",
-      gifPath: "/public/gif/iterations.gif",
+        "Didn't change a thing you already know. Access to all add-ons in the same place.",
+      type: "video",
+      videoPath: "/index/TabComponent/iterations.mp4",
     },
     {
-      title: "No More Huge Paywall",
-      description: "One subscription, and all the add-ons you need.",
-      type: "custom",
+      title: "No More Managing Multiple Accounts",
+      description: "One subscription, one account, and all the add-ons you need in one place.",
+      type: "image",
+      imagePath: "/index/TabComponent/paywall.png",
     },
   ];
 
@@ -125,26 +126,49 @@ const TabComponent: React.FC = () => {
             )}
           </div>
         );
-      case "gif":
+      case "video":
+        return (
+          <div className="content-container">
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="section-video"
+              style={{
+                width: '100%',
+                height: 'auto',
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                console.error('Video error:', e);
+              }}
+            >
+              <source 
+                src={section.videoPath} 
+                type="video/mp4"
+                onError={(e) => {
+                  console.error('Source error:', e);
+                }}
+              />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        );
+      case "image":
         return (
           <div className="content-container">
             <Image
-              src={section.gifPath}
-              alt="Infinite Iterations"
+              src={section.imagePath}
+              alt={section.title}
               width={500}
               height={300}
-              className="gif-content"
+              className="section-image"
             />
           </div>
         );
-      case "custom":
-        return (
-          <div className="content-container">
-
-
-
-          </div>
-        );
+      default:
+        return <div className="content-container" />;
     }
   };
 

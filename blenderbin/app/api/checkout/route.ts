@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create checkout session
+    // Create checkout session with updated success_url
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
         price: priceId,
         quantity: 1
       }],
-      success_url: `${process.env.NEXT_PUBLIC_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_URL}/download?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_URL}/`,
       allow_promotion_codes: true,
       billing_address_collection: 'required',

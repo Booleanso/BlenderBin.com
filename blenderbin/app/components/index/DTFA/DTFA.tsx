@@ -82,7 +82,13 @@ const DTFA = (): React.ReactElement => {
         </p>
 
         {/* CTA Button */}
-        <button className="rounded-full bg-white/10 px-8 py-3 text-white backdrop-blur-sm transition-all hover:bg-white/20">
+        <button 
+          onClick={() => {
+            const subscriptionsSection = document.getElementById('subscriptions');
+            subscriptionsSection?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="rounded-full bg-white/10 px-8 py-3 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+        >
           See Subscriptions
         </button>
 
