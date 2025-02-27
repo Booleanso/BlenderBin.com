@@ -31,6 +31,7 @@
     "@stripe/stripe-js": "latest",
     "@types/three": "^0.170.0",
     "aws-sdk": "latest",
+    "axios": "^1.8.1",
     "blenderbin": "file:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -50,6 +51,7 @@
     "sass": "^1.83.4",
     "stripe": "latest",
     "tailwind-merge": "^3.0.1",
+    "tailwindcss": "latest",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.167.1"
   },

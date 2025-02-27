@@ -22,8 +22,7 @@ interface AuthFormProps {
 
 function AuthForm({ 
   onSubmit, 
-  isSignUp, 
-  setIsSignUp, 
+  isSignUp,
   isLoading, 
   error, 
   formData, 
@@ -211,7 +210,7 @@ export default function AuthPage(): React.ReactElement {
               </>
             ) : (
               <>
-                Don't have an account?{' '}
+                Do not have an account?{' '}
                 <button
                   onClick={() => setIsSignUp(true)}
                   className="text-white underline"
