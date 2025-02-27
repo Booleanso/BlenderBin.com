@@ -38,7 +38,7 @@ const DTFA = (): React.ReactElement => {
   }, []);
 
   const creators = [
-    "@OS",
+    "@MARV.OS",
     "@THEDIZZYVIPER",
     "@0XVIZION",
     "@ARTYOMTOGO",
@@ -48,6 +48,7 @@ const DTFA = (): React.ReactElement => {
     "@KYLEC3D",
     "@POKRASLAMPAS",
     "@KODYKURTH",
+    "@DAVIDHLT",
   ];
 
   return (
@@ -94,6 +95,9 @@ const DTFA = (): React.ReactElement => {
 
         {/* Creators list */}
         <div className="mt-16 border-t border-gray-800 pt-8">
+          <h3 className="mb-6 text-xl font-bold text-gray-300">
+            Inspired by these talented artists and more.
+          </h3>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
             {creators.map((creator) => (
               <span

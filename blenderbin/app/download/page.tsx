@@ -1,15 +1,40 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle } from 'lucide-react';
 import FAQ from '../components/FAQ/FAQ';
 
+// Create a wrapper component that doesn't use useSearchParams
 export default function DownloadPage() {
+  return (
+    <Suspense fallback={<DownloadingPlaceholder />}>
+      <DownloadContent />
+    </Suspense>
+  );
+}
+
+// Simple loading component
+function DownloadingPlaceholder() {
+  return (
+    <div className="min-h-screen bg-black text-gray-100">
+      <main className="container mx-auto px-4 py-24">
+        <div className="max-w-2xl mx-auto text-center space-y-8">
+          <h1 className="text-4xl font-bold text-white">
+            Loading download information...
+          </h1>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Move all content to this component
+function DownloadContent() {
   const [isDownloading, setIsDownloading] = useState(false);
   const searchParams = useSearchParams();
 
-  const initiateDownload = async () => {
+  const initiateDownload = useCallback(async () => {
     try {
       const response = await fetch(`/api/download?userId=${searchParams.get('userId')}`);
       if (response.ok) {
@@ -20,7 +45,7 @@ export default function DownloadPage() {
     } catch (error) {
       console.error('Download error:', error);
     }
-  };
+  }, [searchParams]);
 
   useEffect(() => {
     // Start download after 2 seconds if userId is present
@@ -31,7 +56,7 @@ export default function DownloadPage() {
 
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [initiateDownload, searchParams]);
 
   return (
     <div className="min-h-screen bg-black text-gray-100">
@@ -98,7 +123,6 @@ export default function DownloadPage() {
           <FAQ />
         </div>
       </main>
-
     </div>
   );
 }

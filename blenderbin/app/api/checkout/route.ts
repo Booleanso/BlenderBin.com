@@ -7,14 +7,41 @@ async function getOrCreateStripeCustomer(userId: string) {
   try {
     // First try to get existing customer
     const userDoc = await db.collection('customers').doc(userId).get();
-    if (userDoc.exists && userDoc.data()?.stripeId) {
-      return userDoc.data()?.stripeId;
+    const existingStripeId = userDoc.data()?.stripeId;
+
+    // Check if customer exists and if it's a test mode customer
+    if (userDoc.exists && existingStripeId) {
+      // If the customer ID starts with 'cus_test_', we need to create a new live mode customer
+      if (existingStripeId.startsWith('cus_test_')) {
+        console.log(`Migrating test customer ${existingStripeId} to live mode`);
+        
+        // Get user data to create new customer
+        const user = await getAuth().getUser(userId);
+        
+        // Create new live mode Stripe customer
+        const newCustomer = await stripe.customers.create({
+          email: user.email || undefined,
+          metadata: {
+            firebaseUID: userId
+          }
+        });
+
+        // Update the customer document with the new live mode customer ID
+        await db.collection('customers').doc(userId).set({
+          stripeId: newCustomer.id,
+          email: user.email
+        }, { merge: true });
+
+        return newCustomer.id;
+      }
+      
+      // If not a test mode customer, return existing ID
+      return existingStripeId;
     }
 
-    // If no customer exists, get user data to create one
+    // If no customer exists at all, create a new one (existing flow)
     const user = await getAuth().getUser(userId);
     
-    // Create new Stripe customer
     const customer = await stripe.customers.create({
       email: user.email || undefined,
       metadata: {
@@ -22,7 +49,6 @@ async function getOrCreateStripeCustomer(userId: string) {
       }
     });
 
-    // Store the customer ID in Firestore
     await db.collection('customers').doc(userId).set({
       stripeId: customer.id,
       email: user.email

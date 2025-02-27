@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import "./HeroSection.scss";
 
-interface HeroSectionProps {
+interface HeroSectionProps { 
   scrollY: number;
 } 
 

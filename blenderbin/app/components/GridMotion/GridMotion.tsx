@@ -91,7 +91,7 @@ const GridMotion: FC<GridMotionProps> = ({
                   <div key={itemIndex} className="row__item">
                     <div
                       className="row__item-inner"
-                      style={{ backgroundColor: "#111" }}
+                      style={{ backgroundColor: "#00000" }}
                     >
                       {typeof content === "string" &&
                       content.startsWith("http") ? (

@@ -27,11 +27,6 @@
   overflow: hidden;
 }
 
-.feature-card-link {
-  text-decoration: none;
-  color: inherit;
-}
-
 .scroll-reveal-container{
   max-width: 500px;
 }
@@ -40,10 +35,10 @@
   position: absolute;
   width: 240px;
   padding: 1.5rem;
-  backdrop-filter: blur(8px);
   border-radius: 1rem;
-  transition: transform 0.3s ease, opacity 0.3s ease, background 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
   will-change: transform, opacity;
+  background: rgba(255, 255, 255, 0);
 }
 
 .feature-content {
@@ -80,8 +75,8 @@
 }
 
 .addon-type.premium {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fbbf24;
+  background: rgba(194, 36, 251, 0.2);
+  color: #f024fb;
 }
 
 .center-card {

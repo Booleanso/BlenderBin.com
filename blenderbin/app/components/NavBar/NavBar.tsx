@@ -5,12 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '../../lib/firebase-client';
 import { User, updateEmail } from 'firebase/auth';
-import { loadStripe } from '@stripe/stripe-js';
 import Image from 'next/image';
-import { storage } from '../../lib/firebase-client';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { s3Client } from '../../lib/S3';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { FirebaseError } from 'firebase/app';
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import styles from './NavBar.module.scss';
@@ -94,33 +92,6 @@ const NavBar = () => {
     }
   };
 
-  const handleCheckout = async () => {
-    try {
-      if (!user?.uid) return;
-      
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '',
-        }),
-      });
-
-      if (!response.ok) throw new Error('Checkout failed');
-      
-      const { sessionId } = await response.json();
-      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-      if (!stripe) throw new Error('Failed to load Stripe');
-      
-      await stripe.redirectToCheckout({ sessionId });
-    } catch (error) {
-      console.error('Checkout error:', error);
-    }
-  };
-
   const handleUnsubscribe = async () => {
     try {
       if (!user?.uid) return;
@@ -141,7 +112,7 @@ const NavBar = () => {
       if (statusResponse.ok) {
         const data = await statusResponse.json();
         setSubscriptionStatus(data);
-      }
+      } 
 
       setProfileModalOpen(false);
     } catch (error) {
@@ -180,8 +151,9 @@ const NavBar = () => {
       setEditingEmail(false);
       setEmailError('');
       setNewEmail('');
-    } catch (error: any) {
-      setEmailError(error.message || 'Failed to update email');
+    } catch (error: FirebaseError | unknown) {
+      const errorMessage = error instanceof FirebaseError ? error.message : 'Failed to update email';
+      setEmailError(errorMessage);
       console.error('Error updating email:', error);
     }
   };
@@ -198,15 +170,13 @@ const NavBar = () => {
     if (!file || !user?.email) return;
 
     try {
-      // Create a buffer from the file
       const buffer = await file.arrayBuffer();
       const fileName = `FRONTEND/USERS/PROFILE_PICTURES/${encodeURIComponent(user.email)}`;
 
-      // Upload to S3
       const command = new PutObjectCommand({
         Bucket: process.env.NEXT_PUBLIC_AWS_S3_BUCKET!,
         Key: fileName,
-        Body: buffer,
+        Body: new Uint8Array(buffer),
         ContentType: file.type,
       });
 
@@ -235,8 +205,8 @@ const NavBar = () => {
           <Image
             src="/blenderbinlogo.png"
             alt="BlenderBin Logo"
-            width={32}
-            height={32}
+            width={28}
+            height={28}
             className={styles.logoImage}
           />
         </Link>
@@ -254,41 +224,39 @@ const NavBar = () => {
             <>
               {/* <span className={styles.userEmail}>{user.email}</span> */}
 
-              {subscriptionStatus.isSubscribed ? (
-                <div className={styles.authdiv}>
-          
-                  <button 
-                    onClick={() => setProfileModalOpen(true)} 
-                    className={styles.profileButton}
-                  >
-                    {profilePicUrl ? (
-                      <Image
-                        src={profilePicUrl}
-                        alt="Profile"
-                        width={40}
-                        height={40}
-                      />
-                    ) : (
-                      <Image
-                        src="/default-profile.svg"
-                        alt="Default Profile"
-                        width={40}
-                        height={40}
-                      />
-                    )}
-                  </button>
+              <div className={styles.authdiv}>
+                <button 
+                  onClick={() => setProfileModalOpen(true)} 
+                  className={styles.profileButton}
+                >
+                  {profilePicUrl ? (
+                    <Image
+                      src={profilePicUrl}
+                      alt="Profile"
+                      width={40}
+                      height={40}
+                    />
+                  ) : (
+                    <Image
+                      src="/default-profile.svg"
+                      alt="Default Profile"
+                      width={40}
+                      height={40}
+                    />
+                  )}
+                </button>
 
+                {subscriptionStatus.isSubscribed && (
                   <button onClick={handleRedownload} className={styles.downloadButton}>
                     Re-Download
                   </button>
+                )}
+              </div>
 
-
-                </div>
-              ) : (
-                <div>
-                  <button onClick={scrollToSubscriptions} className={styles.downloadButton}>Get Started</button>
-                </div>
+              {!subscriptionStatus.isSubscribed && (
+                <button onClick={scrollToSubscriptions} className={styles.signupButton}>See Subscriptions</button>
               )}
+              
               <button onClick={handleLogout} className={styles.downloadButton}>
                 Logout
               </button>
@@ -297,6 +265,7 @@ const NavBar = () => {
             <>
               <Link href="/auth" className={styles.loginButton}>Log in</Link>
               <Link href="/auth" className={styles.signupButton}>Sign up</Link>
+              <button onClick={scrollToSubscriptions} className={styles.signupButton}>See Subscriptions</button>
             </>
           )}
         </div>
@@ -390,14 +359,16 @@ const NavBar = () => {
               <p className="text-sm text-gray-500">Member since: {user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}</p>
             </div>
             
-            <div className="space-y-2">
-              <button
-                onClick={handleUnsubscribe}
-                className="w-full bg-red-100 hover:bg-red-200 text-red-900 px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Unsubscribe
-              </button>
-            </div>
+            {subscriptionStatus.isSubscribed && (
+              <div className="space-y-2">
+                <button
+                  onClick={handleUnsubscribe}
+                  className="w-full bg-red-100 hover:bg-red-200 text-red-900 px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  Unsubscribe
+                </button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

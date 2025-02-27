@@ -5,6 +5,10 @@
   background-color: #111;
   padding: 2rem;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  
   --mouse-x: 50%;
   --mouse-y: 50%;
   --spotlight-color: rgba(255, 255, 255, 0.05);
@@ -26,4 +30,25 @@
 .card-spotlight:hover::before,
 .card-spotlight:focus-within::before {
   opacity: 0.6;
+}
+
+/* Add text styling for the spotlight cards */
+.card-spotlight h3 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.card-spotlight p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #aaa;
+  margin-bottom: 1.5rem;
+}
+
+.card-spotlight:hover h3 {
+  color: #00e5ff;
+  transition: color 0.3s ease;
 }

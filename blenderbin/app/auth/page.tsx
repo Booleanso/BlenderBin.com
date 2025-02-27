@@ -86,6 +86,7 @@ function AuthForm({
         {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Login')}
       </button>
 
+      {/* Commenting out social login buttons for now
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-gray-700"></div>
@@ -116,6 +117,7 @@ function AuthForm({
           <span>Continue with Google</span>
         </button>
       </div>
+      */}
 
       <p className="text-xs text-center text-gray-500">
         By clicking continue, you agree to our{' '}
@@ -191,11 +193,11 @@ export default function AuthPage(): React.ReactElement {
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <div className="mb-6">
+          {/* <div className="mb-6">
             <svg className="mx-auto h-12 w-12" viewBox="0 0 24 24" fill="white">
               <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
             </svg>
-          </div>
+          </div> */}
           <h2 className="text-2xl font-bold">Welcome to BlenderBin.</h2>
           <p className="mt-2 text-sm text-gray-500">
             {isSignUp ? (

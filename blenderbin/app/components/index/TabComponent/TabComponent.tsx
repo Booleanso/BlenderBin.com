@@ -4,12 +4,21 @@ import React, { useEffect, useState } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
 import InfiniteScroll from './InfiniteScroll/InfiniteScroll';
+import TiltedCard from './TiltedCard/TiltedCard';
 import './TabComponent.css';
 
 interface S3Files {
   premium: string[];
   free: string[];
   icons: Record<string, string>;
+}
+
+interface Section {
+  title: string;
+  description: string;
+  type: "scroll" | "video" | "image" | "tiltedCard";
+  videoPath?: string;
+  imagePath?: string;
 }
 
 const TabComponent: React.FC = () => {
@@ -84,29 +93,29 @@ const TabComponent: React.FC = () => {
     )
   }));
 
-  const sections = [
+  const sections: Section[] = [
     {
       title: "Full Library of Blender Add-ons",
       description:
         "Access a wide range of Blender add-ons, from basic tools to advanced features.",
-      type: "scroll",
+      type: "scroll" as const,
     },
     {
       title: "Familiar Interface",
       description:
         "Didn't change a thing you already know. Access to all add-ons in the same place.",
-      type: "video",
+      type: "video" as const,
       videoPath: "/index/TabComponent/iterations.mp4",
     },
     {
-      title: "No More Managing Multiple Accounts",
+      title: "No More Paying for Multiple Add-ons",
       description: "One subscription, one account, and all the add-ons you need in one place.",
-      type: "image",
+      type: "tiltedCard" as const,
       imagePath: "/index/TabComponent/paywall.png",
     },
   ];
 
-  const renderSectionContent = (section: any, index: number) => {
+  const renderSectionContent = (section: Section) => {
     switch (section.type) {
       case "scroll":
         return (
@@ -155,15 +164,18 @@ const TabComponent: React.FC = () => {
             </video>
           </div>
         );
-      case "image":
+      case "tiltedCard":
         return (
           <div className="content-container">
-            <Image
-              src={section.imagePath}
-              alt={section.title}
-              width={500}
-              height={300}
-              className="section-image"
+            <TiltedCard
+              imageSrc={section.imagePath}
+              altText={section.title}
+              containerHeight="100%"
+              containerWidth="100%"
+              imageHeight="100%"
+              imageWidth="100%"
+              scaleOnHover={1.05}
+              rotateAmplitude={10}
             />
           </div>
         );
@@ -181,7 +193,7 @@ const TabComponent: React.FC = () => {
               <h1 className="section-title">{section.title}</h1>
               <p className="section-description">{section.description}</p>
             </div>
-            {renderSectionContent(section, index)}
+            {renderSectionContent(section)}
           </div>
         ))}
       </div>

@@ -58,7 +58,7 @@
 
 .lovedByProfile {
   display: flex;
-  align-items: center;
+  align-items: left;
 }
 
 .lovedByProfileImage {
@@ -77,16 +77,27 @@
   background-color: #111;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 16px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  justify-content: space-between;
+  align-items: left;
+  gap: 16px;
+  height: 100%;
+  width: 100%;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
 }
 
 .userInfo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .avatar {
@@ -96,28 +107,43 @@
 
 .username {
   color: #fff;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.testimonialText {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+  text-align: right;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin-top: auto;
 }
 
 .testimonialCard p {
-  color: #fff;
-  font-size: 14px;
-  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  line-height: 1.6;
   margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 .quoteSymbol {
-  width: 40px;
-  height: 40px;
+  width: 100px;
+  height: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 250px;
   font-weight: bold;
-  color: #666;
-  background: #f0f0f0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #3a85ff00, #8338ec00);
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 // .lovedByProfileInfo {

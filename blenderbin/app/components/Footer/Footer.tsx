@@ -1,38 +1,9 @@
 // app/components/Footer.tsx
 import Link from 'next/link'
+import Image from 'next/image'
 import './Footer.css'
 
-type FooterLinkProps = {
-  href: string
-  children: React.ReactNode
-}
 
-const FooterLink = ({ href, children }: FooterLinkProps) => (
-  <Link href={href} className="footer-link">
-    {children}
-  </Link>
-)
-
-type FooterSectionProps = {
-  title: string
-  links: {
-    href: string
-    label: string
-  }[]
-}
-
-const FooterSection = ({ title, links }: FooterSectionProps) => (
-  <div className="footer-section">
-    <h3>{title}</h3>
-    <div className="footer-links">
-      {links.map((link) => (
-        <FooterLink key={link.href} href={link.href}>
-          {link.label}
-        </FooterLink>
-      ))}
-    </div>
-  </div>
-)
 
 export default function Footer() {
   return (
@@ -47,7 +18,16 @@ export default function Footer() {
             </svg>
           </Link>
         </div>
-        <div className="footer-cta-image" aria-hidden="true" />
+        <div className="footer-cta-image" aria-hidden="true">
+          <Image 
+            src="/helloblenderbin.png" 
+            alt="BlenderBin" 
+            width={100}
+            height={100}
+            quality={100}
+            style={{ width: '100%', height: '100%', borderRadius: '8px' }}
+          />
+        </div>
       </div>
 
       <div className="footer-content">
@@ -55,7 +35,7 @@ export default function Footer() {
           <div className="footer-section">
             <h3>Product</h3>
             <div className="footer-links">
-              <Link href="/pricing" className="footer-link">Pricing</Link>
+              <Link href="/#subscriptions" className="footer-link">Pricing</Link>
               {/* <Link href="/downloads" className="footer-link">Downloads</Link> */}
               <Link href="/docs" className="footer-link">Docs</Link>
               <Link href="/forum" className="footer-link">Feedback</Link>
@@ -66,8 +46,8 @@ export default function Footer() {
             <h3>Socials</h3>
             <div className="footer-links">
               <Link href="https://instagram.com/blenderbin" className="footer-link">Instagram</Link>
-              <Link href="https://twitter.com/blenderbin" className="footer-link">Twitter</Link>
-              <Link href="https://github.com/blenderbin" className="footer-link">GitHub</Link>
+              {/* <Link href="https://twitter.com/blenderbin" className="footer-link">Twitter</Link> */}
+              <Link href="https://github.com/WebRendHQ/BlenderBin-Launcher" className="footer-link">GitHub</Link>
             </div>
           </div>
           

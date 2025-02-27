@@ -7,8 +7,18 @@
     height: 85vh;
     z-index: 0;
     padding-top: 20vh;
-
     background-color: black;
+    
+    @media (max-width: 768px) {
+        padding-top: 10vh;
+        height: auto;
+        min-height: 85vh;
+    }
+
+    @media (max-height: 700px) {
+        padding-top: 5vh;
+        min-height: 100vh;
+    }
 
     .hero-title-container{
         position: relative;
@@ -19,12 +29,31 @@
         height: 100%;
         top: 0;
         padding-bottom: 10vh;
+        padding: 0 1rem;
+        z-index: 2;
+        
+        @media (max-width: 768px) {
+            padding-bottom: 5vh;
+        }
+
+        @media (max-height: 700px) {
+            padding-bottom: 2vh;
+        }
 
         .hero-title{
             color: white;
             font-size: 3rem;
             font-weight: 700;
             text-align: center;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+            
+            @media (max-width: 768px) {
+                font-size: 2rem;
+            }
+            
+            @media (max-width: 480px) {
+                font-size: 1.75rem;
+            }
         }
         
         .hero-description{
@@ -32,6 +61,12 @@
             font-size: 1rem;
             font-weight: 400;
             text-align: center;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+            margin-top: 0.5rem;
+            
+            @media (max-width: 480px) {
+                font-size: 0.9rem;
+            }
         }
     }
 
@@ -39,7 +74,7 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        min-height: 250px;
+        min-height: 150px;
         min-width: 250px;
         background: linear-gradient(
             135deg, 
@@ -50,12 +85,28 @@
             #364fc7     /* rich blue */
         );
         width: 75%;
-        max-width: 2000px;
+        max-width: 1500px;
         height: 55rem;
-        max-height: 1500px;
+        max-height: 800px;
         border-radius: 16px;
         box-shadow: 0 0 50px 0 rgb(0, 0, 0);
+        z-index: 1;
         
+        @media (max-width: 768px) {
+            width: 90%;
+            height: 5rem;
+        }
+        
+        @media (max-width: 480px) {
+            min-height: 200px;
+            height: 10rem;
+        }
+
+        @media (max-height: 700px) {
+            width: 65%;
+            max-height: 600px;
+            margin-top: 2rem;
+        }
 
         &::before {
             content: '';
@@ -82,6 +133,7 @@
             align-items: center;
             justify-content: center;
             width: 75%;
+            max-width: 1200px;
             
             margin-left: auto;
             margin-right: auto;
@@ -89,6 +141,14 @@
             right: 0;
             bottom:0;
             border-radius: 10px 10px 0 0;
+            
+            @media (max-width: 768px) {
+                width: 85%;
+            }
+            
+            @media (max-width: 480px) {
+                width: 95%;
+            }
         }
 
     }
@@ -96,28 +156,50 @@
 }
 
 .hero-buttons {
-  display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    position: relative;
+    z-index: 3;
+    
+    @media (max-width: 480px) {
+        flex-direction: column;
+        width: 100%;
+        max-width: 250px;
+        gap: 0.75rem;
+    }
+
+    @media (max-height: 700px) {
+        margin-top: 1rem;
+    }
 }
 
 .hero-button {
-  color: rgb(0, 0, 0);
-  background-color: rgb(255, 255, 255);
-  padding: 0.75rem 1.5rem;
-  border-radius: 55px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.481);
-  }
+    color: rgb(0, 0, 0);
+    background-color: rgb(255, 255, 255);
+    padding: 0.75rem 1.5rem;
+    border-radius: 55px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    
+    @media (max-width: 480px) {
+        width: 100%;
+        text-align: center;
+        padding: 0.75rem 1rem;
+    }
+    
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.481);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    }
 }
 
 .hero-button-secondary {
-  background-color: rgb(255, 255, 255);
-  
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.381);
-  }
+    background-color: rgb(255, 255, 255);
+    
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.381);
+    }
 }

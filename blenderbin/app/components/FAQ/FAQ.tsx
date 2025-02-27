@@ -72,7 +72,7 @@ const FAQ = () => {
     },
     {
       question: 'How much is BlenderBin?',
-      answer: 'A BlenderBin basic subscription will be $14 a month, or $140 a year. You can cancel anytime.',
+      answer: 'A BlenderBin basic subscription will be $14 a month, or $126 a year. You can cancel anytime.',
     },
   ]
 

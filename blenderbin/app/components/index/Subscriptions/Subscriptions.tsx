@@ -199,10 +199,10 @@ const Subscriptions = () => {
         {/* Yearly Plan */}
         <div className={`${styles.planCard} ${styles.featuredPlan} ${getCurrentPlan() === 'yearly' ? styles.currentPlan : ''}`}>
           <div className={styles.planHeader}>
-            <div className={styles.saveBadge}>Save 20%</div>
+            <div className={styles.saveBadge}>Save 25%</div>
             <h3>Yearly Plan</h3>
             <div className={styles.price}>
-              <span className={styles.amount}>$134.40</span>
+              <span className={styles.amount}>$126</span>
               <span className={styles.interval}> / year</span>
             </div>
           </div>

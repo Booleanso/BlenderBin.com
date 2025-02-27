@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import './ConvergingFeatures.css';
 
 
@@ -131,16 +130,43 @@ const ConvergingFeatures = () => {
       .toUpperCase();
   };
 
-  // Add function to determine which title to show
-  const getCurrentTitle = () => {
+  const getTitleAndOpacity = () => {
     if (scrollProgress < 0.1) {
-      return "";  // Start empty
-    } else if (scrollProgress < 0.5) {
-      return "First, we had one idea.";
-    } else if (scrollProgress < 0.8) {
-      return "Then, we had multiple.";
+      return {
+        text: "",
+        opacity: 0
+      };
+    } else if (scrollProgress < 0.4) {
+      // First title: fade in 0.1-0.15, visible until 0.3, fade out 0.3-0.4
+      const opacity = scrollProgress < 0.15 
+        ? (scrollProgress - 0.1) * 20  // Quick fade in
+        : scrollProgress > 0.3 
+          ? 1 - ((scrollProgress - 0.3) * 10)  // Fade out
+          : 1;  // Stay visible
+      return {
+        text: "First, we had one idea.",
+        opacity: Math.max(0, Math.min(1, opacity))
+      };
+    } else if (scrollProgress < 0.7) {
+      // Second title: fade in 0.4-0.45, visible until 0.6, fade out 0.6-0.7
+      const opacity = scrollProgress < 0.45 
+        ? (scrollProgress - 0.4) * 20  // Quick fade in
+        : scrollProgress > 0.6 
+          ? 1 - ((scrollProgress - 0.6) * 10)  // Fade out
+          : 1;  // Stay visible
+      return {
+        text: "Then, we had multiple.",
+        opacity: Math.max(0, Math.min(1, opacity))
+      };
     } else {
-      return "So, we created a hub to house them.";
+      // Final title: fade in 0.7-0.75, visible for the rest
+      const opacity = scrollProgress < 0.75
+        ? (scrollProgress - 0.7) * 20  // Quick fade in
+        : 1;
+      return {
+        text: "So, we created a hub to house them.",
+        opacity
+      };
     }
   };
 
@@ -148,7 +174,7 @@ const ConvergingFeatures = () => {
     <div ref={sectionRef} className="converging-section">
       <div className="scroll-container">
         <div className="features-container">
-          {/* Add the title above the center card */}
+          {/* Update the title div */}
           <div 
             className="story-title"
             style={{
@@ -161,11 +187,11 @@ const ConvergingFeatures = () => {
               fontSize: '2rem',
               fontWeight: 'bold',
               color: '#fff',
-              opacity: scrollProgress > 0.1 ? 1 : 0,
+              opacity: getTitleAndOpacity().opacity,
               transition: 'opacity 0.3s ease'
             }}
           >
-            {getCurrentTitle()}
+            {getTitleAndOpacity().text}
           </div>
 
           {/* Existing center card */}
@@ -186,34 +212,29 @@ const ConvergingFeatures = () => {
             />
           </div>
 
-          {/* Existing addons mapping */}
+          {/* Modified addons mapping - removed Link wrapper */}
           {addons.map((addon) => (
-            <Link
+            <div
               key={addon.id}
-              href={`/library/${encodeURIComponent(addon.name)}`}
-              className="feature-card-link"
+              className={`feature-card ${addon.type}-addon`}
+              style={getAddonStyle(addon)}
             >
-              <div
-                className={`feature-card ${addon.type}-addon`}
-                style={getAddonStyle(addon)}
-              >
-                <div className="feature-content">
-                  {addon.iconUrl && (
-                    <Image
-                      src={addon.iconUrl}
-                      alt={`${addon.name} icon`}
-                      className="addon-icon"
-                      width={32}
-                      height={32}
-                    />
-                  )}
-                  <h3 className="feature-title">{getDisplayName(addon.name)}</h3>
-                  <span className={`addon-type ${addon.type}`}>
-                    {addon.type.charAt(0).toUpperCase() + addon.type.slice(1)}
-                  </span>
-                </div>
+              <div className="feature-content">
+                {addon.iconUrl && (
+                  <Image
+                    src={addon.iconUrl}
+                    alt={`${addon.name} icon`}
+                    className="addon-icon"
+                    width={32}
+                    height={32}
+                  />
+                )}
+                <h3 className="feature-title">{getDisplayName(addon.name)}</h3>
+                <span className={`addon-type ${addon.type}`}>
+                  {addon.type.charAt(0).toUpperCase() + addon.type.slice(1)}
+                </span>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </div>

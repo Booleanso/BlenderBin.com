@@ -8,7 +8,7 @@ const FeatureSection = () => {
       <div className={styles.featureHeader}>
         <h2>Create 3D faster</h2>
         <p>With an infinite number of add-ons at your disposal.</p>
-        <button className={styles.seeMoreBtn}>SEE MORE FEATURES</button>
+        {/* <button className={styles.seeMoreBtn}>SEE MORE FEATURES</button> */}
       </div>
       
       <div className={styles.featureGrid}>
