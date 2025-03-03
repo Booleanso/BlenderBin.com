@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create checkout session with updated success_url
+    // Create checkout session with updated parameters for Firebase extension
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
@@ -107,6 +107,19 @@ export async function POST(request: Request) {
       cancel_url: `${process.env.NEXT_PUBLIC_URL}/`,
       allow_promotion_codes: true,
       billing_address_collection: 'required',
+      tax_id_collection: { enabled: true },
+      client_reference_id: userId, // Critical for Firebase extension
+      metadata: {
+        firebaseUID: userId
+      }
+    });
+
+    // Pre-create a subscription document to help with tracking
+    await db.collection('users').doc(userId).collection('checkout_sessions').doc(session.id).set({
+      sessionId: session.id,
+      created: new Date().toISOString(),
+      priceId: priceId,
+      status: 'created'
     });
 
     return NextResponse.json({ sessionId: session.id });
