@@ -1,130 +1,68 @@
-# BlenderBin.com
-Next.js app for BlenderBin.com
+# BlenderBin Addon Library
 
+## Overview
+BlenderBin is a revolutionary platform that transforms individual Blender addons into a seamless, all-in-one addon library. By subscribing to BlenderBin, users gain lifetime access to an exclusive collection of Blender addons, ensuring a streamlined workflow without the hassle of multiple purchases or installations.
 
+## Key Features
 
-To create a Next.js app optimized for deployment on Vercel, follow these steps:
+### 📂 Unified Addon Library
+- A single subscription unlocks a vast collection of Blender addons.
+- No need for separate purchases—access everything with one payment.
 
----
+### 🚀 One-Time Payment Model
+- Pay once and enjoy lifetime access—no recurring fees.
+- Ensures affordability and long-term usability for all Blender users.
 
-### **1. Install Node.js and npm**
-Ensure you have Node.js installed on your machine. You can download it from [Node.js](https://nodejs.org/).
+### 🔄 Seamless Integration
+- Optimized for easy installation and management within Blender.
+- Regular updates to keep all addons compatible with the latest Blender versions.
 
-Verify installation:
-```bash
-node -v
-npm -v
+### 🔧 Curated Addon Selection
+- Features top-tier addons vetted for quality and performance.
+- Continuously expanding library to meet evolving user needs.
+
+## Long-Term Goals
+✅ Expand the Addon Collection – Continuously add high-quality Blender addons.
+✅ Optimize User Experience – Ensure seamless integration and usability.
+✅ Maintain Lifetime Access Model – No subscriptions, just a single payment.
+✅ Regular Updates & Support – Keep addons up to date with the latest Blender releases.
+
+## Progress & Updates
+All development updates, new addon releases, and platform enhancements are documented on Notion. Track our progress and upcoming features here:
+
+📌 [Project Notion Page](https://webrend.notion.site/BlenderBin-191a5578b41d8020ac49dad37bb3777c?pvs=4)
+
+## Getting Started
+### Prerequisites
+- **Blender** (Latest Version)
+- **Node.js** (For frontend development)
+- **Vercel** (For deployment)
+
+### Installation & Running the Next.js Project
+Since this repository contains the Next.js frontend for the BlenderBin platform, follow these steps to set up and run the project locally.
+
+#### 1️⃣ Running the Next.js Frontend
+Navigate to the BlenderBin Next.js project folder:
+```sh
+cd blenderbin
 ```
-
----
-
-### **2. Create a New Next.js App**
-Run the following command to create a new Next.js app:
-```bash
-npx create-next-app@latest my-nextjs-app
+Install dependencies:
+```sh
+npm install
 ```
-
-You'll be prompted to choose various configurations. For Vercel deployment, you can accept the default options or customize as needed:
-- TypeScript: Recommended (`Yes`) if you're familiar with it.
-- ESLint: Optional but recommended for linting.
-- Tailwind CSS: Optional for styling.
-- `src/` directory: Optional based on your preference.
-- App Router: Recommended for new projects (Next.js 13+ feature).
-- Import aliases: Optional for custom path imports.
-
-Move into the newly created app folder:
-```bash
-cd my-nextjs-app
-```
-
----
-
-### **3. Test the Development Server**
-Run the development server to ensure the app works:
-```bash
+Start the Next.js development server:
+```sh
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser to view your app.
-
----
-
-### **4. Prepare for Vercel Deployment**
-Create a `.vercelignore` file (optional) to exclude unnecessary files from deployment:
-```bash
-touch .vercelignore
-```
-Example contents:
-```
-node_modules
-.env.local
+Access the frontend at:
+```sh
+http://localhost:3000
 ```
 
-Ensure your `package.json` includes the necessary build and start scripts (created automatically by `create-next-app`):
-```json
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start"
-}
-```
+#### 2️⃣ Accessing the Live Deployment
+The Next.js web interface is available at:
+🌍 [Live Web Dashboard (Vercel)](https://blenderbincom.vercel.app/)
 
----
+## License
+This project is privately licensed and is not available for public distribution.
 
-### **5. Initialize Git**
-If not already initialized:
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-```
-
----
-
-### **6. Deploy to Vercel**
-Install the Vercel CLI:
-```bash
-npm install -g vercel
-```
-
-Run the following command to deploy:
-```bash
-vercel
-```
-
-During the deployment process, you’ll be prompted to:
-1. Connect to your Vercel account (log in if necessary).
-2. Select or create a new project.
-3. Set project configurations (use defaults for most settings).
-
----
-
-### **7. Update Environment Variables (if any)**
-If your app uses environment variables, add them in the Vercel dashboard or via the CLI:
-```bash
-vercel env add <key>
-```
-
-For local development, use a `.env.local` file:
-```bash
-touch .env.local
-```
-
-Example:
-```bash
-NEXT_PUBLIC_API_URL=https://api.example.com
-```
-
----
-
-### **8. Build and Verify**
-Build your app locally to test for production readiness:
-```bash
-npm run build
-```
-
----
-
-### **9. Access Your Deployed App**
-Vercel will provide a deployment URL. Visit the URL to see your deployed app.
-
-For future updates, push changes to the linked Git repository. Vercel will automatically trigger deployments.
