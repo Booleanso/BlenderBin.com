@@ -9,177 +9,177 @@ const items = [
   <div key="1" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@mantissa.xyz</span>
+      <span className={styles.username}> </span>
     </div>
-    <p className={styles.testimonialText}>BlenderBin's procedural workflow sharing is revolutionary! Perfect for abstract art 🌀</p>
+    <p className={styles.testimonialText}> </p>
   </div>,
   <div key="2" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@southernshotty</span>
+      <span className={styles.username}> </span>
     </div>
-    <p className={styles.testimonialText}>Teaching Blender has never been easier. The scene sharing is perfect for tutorials! 🎓</p>
+    <p className={styles.testimonialText}> </p>
   </div>,
   <div key="3" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@pierrick_picaut</span>
+      <span className={styles.username}>@patrick.casella</span>
     </div>
-    <p className={styles.testimonialText}>The architectural visualization features are exactly what I needed! 🏛️</p>
+    <p className={styles.testimonialText}>"What you are building, what this is going to be, is incredible. I'm so excited for this to come out."</p>
   </div>,
   <div key="4" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@marv.os</span>
+      <span className={styles.username}>@lockhz</span>
     </div>
-    <p className={styles.testimonialText}>BlenderBin's material system is next level. Makes sharing looks so seamless! ✨</p>
+    <p className={styles.testimonialText}>“Crazy Work !”</p>
   </div>,
   <div key="5" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@josh_gambrell</span>
+      <span className={styles.username}>@svbih</span>
     </div>
-    <p className={styles.testimonialText}>Hard surface modeling workflow is so much better with BlenderBin! 🔧</p>
+    <p className={styles.testimonialText}>“Excited for when it comes out”</p>
   </div>,
   <div key="6" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@wayward.art</span>
+      <span className={styles.username}>@mattpsd</span>
     </div>
-    <p className={styles.testimonialText}>The addon management system is brilliant. Everything syncs perfectly! 🔄</p>
+    <p className={styles.testimonialText}>“🔥”</p>
   </div>,
   <div key="7" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@lightningboystudio</span>
+      <span className={styles.username}>@serhii_revenko_</span>
     </div>
-    <p className={styles.testimonialText}>Perfect for managing NPR shaders and sharing toon styles! 🎨</p>
+    <p className={styles.testimonialText}>“wooww, awesome thank you!”</p>
   </div>,
   <div key="8" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@os</span>
+      <span className={styles.username}>@ianjalili</span>
     </div>
-    <p className={styles.testimonialText}>BlenderBin changed how I share my 3D work. The real-time collaboration is next level! 🚀</p>
+    <p className={styles.testimonialText}>”Just wanna say love the awesome work, absolutely amazing”</p>
   </div>,
   <div key="9" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@thedizzyviper</span>
+      <span className={styles.username}>@knbsnn</span>
     </div>
-    <p className={styles.testimonialText}>Finally a platform that understands 3D artists! The material sharing feature is pure gold ✨</p>
+    <p className={styles.testimonialText}>“I hope people create amazing things from points. 👏👏👏”</p>
   </div>,
   <div key="10" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@0xvizion</span>
+      <span className={styles.username}>@knbsnn</span>
     </div>
-    <p className={styles.testimonialText}>The node system sharing in BlenderBin is revolutionary. Perfect for teaching and learning! 🎓</p>
+    <p className={styles.testimonialText}>“As far as I understand, you are doing this with geometry nodes. Your work is great, I like it. You are another dot artist, your work is excellent.”</p>
   </div>,
   <div key="11" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@artyomtogo</span>
+      <span className={styles.username}>@KodyKurth</span>
     </div>
-    <p className={styles.testimonialText}>Love how easy it is to share complex scenes. Version control for 3D files is a game-changer 🔥</p>
+    <p className={styles.testimonialText}>“The Best my scanned tree has ever looked 🌳”</p>
   </div>,
   <div key="12" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@skinny.designwhh</span>
+      <span className={styles.username}>@natebrown</span>
     </div>
-    <p className={styles.testimonialText}>The render farm integration is insane! Saved me hours of rendering time 💫</p>
+    <p className={styles.testimonialText}>“Looking EPIC”</p>
   </div>,
   <div key="13" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@spaceheadtr</span>
+      <span className={styles.username}>@disneyprince</span>
     </div>
-    <p className={styles.testimonialText}>Best platform for sharing procedural materials. The community features are incredible! 🌟</p>
+    <p className={styles.testimonialText}>“this is next level bro🔥”</p>
   </div>,
   <div key="14" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@disneyprince</span>
+      <span className={styles.username}>@evr.lstng</span>
     </div>
-    <p className={styles.testimonialText}>The asset management system in BlenderBin is unmatched. Perfect for large projects 📦</p>
+    <p className={styles.testimonialText}>“This is sick”</p>
   </div>,
   <div key="15" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@kylec3d</span>
+      <span className={styles.username}>@exorcist3d</span>
     </div>
-    <p className={styles.testimonialText}>Collaboration has never been easier. The real-time feedback feature is everything! 🤝</p>
+    <p className={styles.testimonialText}>“Hey man, your addon looks fuckin incredible, would it be possible for me to get my hands on it? Signed up for the waitlist!”</p>
   </div>,
   <div key="16" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@pokraslampas</span>
+      <span className={styles.username}>@lorenzotorralva</span>
     </div>
-    <p className={styles.testimonialText}>BlenderBin makes managing multiple projects so smooth. Love the organization features 🎨</p>
+    <p className={styles.testimonialText}>“Bruhhhhhh”</p>
   </div>,
   <div key="17" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@kodykurth</span>
+      <span className={styles.username}>@shaunfuqua</span>
     </div>
-    <p className={styles.testimonialText}>The shader library is incredible! Makes material creation and sharing so efficient ⚡️</p>
+    <p className={styles.testimonialText}>“So I'm really looking forward to this bc I want to use it for when I do social posts for a renovation client I have - doing a scan type of thing and this is AWESOME!”</p>
   </div>,
   <div key="18" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@zacfarmer</span>
+      <span className={styles.username}>@thirdeyevisualsau</span>
     </div>
-    <p className={styles.testimonialText}>BlenderBin's version control is a lifesaver. Perfect for managing client revisions 🎯</p>
+    <p className={styles.testimonialText}>“Just watched the video, looks awesome. I'll keep an eye out for when it drops!”</p>
   </div>,
   <div key="19" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@davidhlt</span>
+      <span className={styles.username}>@Mecatommy</span>
     </div>
-    <p className={styles.testimonialText}>BlenderBin's lighting presets library is a game changer. So easy to share and import setups! 💡</p>
+    <p className={styles.testimonialText}>“This is awesome, I think it would be cool to have like a library with nuts, bolts and other stuff to add details to other bigger models!”</p>
   </div>,
   <div key="20" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@two.shon</span>
+      <span className={styles.username}>@mihailoandic</span>
     </div>
-    <p className={styles.testimonialText}>The way BlenderBin handles geometry nodes sharing is brilliant. Perfect for modular design! 🔷</p>
+    <p className={styles.testimonialText}>“Love the idea”</p>
   </div>,
   <div key="21" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@anka</span>
+      <span className={styles.username}>@crstlvns</span>
     </div>
-    <p className={styles.testimonialText}>Character rigging collaboration in BlenderBin is unmatched. Makes team animation work so smooth! 🦾</p>
+    <p className={styles.testimonialText}>“What's this beauty?”</p>
   </div>,
   <div key="22" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@yansculpts</span>
+      <span className={styles.username}>@minibaym</span>
     </div>
-    <p className={styles.testimonialText}>The sculpting brush preset sharing is amazing! Community features are top notch 🎨</p>
+    <p className={styles.testimonialText}>“😍”</p>
   </div>,
   <div key="23" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@gleb.alexandrov</span>
+      <span className={styles.username}>@oscarzabala</span>
     </div>
-    <p className={styles.testimonialText}>BlenderBin's lighting preset system changed my rendering workflow completely! 💡</p>
+    <p className={styles.testimonialText}>"I have love watching the progression of your work 💪🙌"</p>
   </div>,
   <div key="24" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@gabbitt</span>
+      <span className={styles.username}>@todd.pham</span>
     </div>
-    <p className={styles.testimonialText}>Makes sharing tutorial files with students so much easier! 📚</p>
+    <p className={styles.testimonialText}>“Can’t wait!”</p>
   </div>,
   <div key="25" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@3ddevon</span>
+      <span className={styles.username}>@ random name</span>
     </div>
-    <p className={styles.testimonialText}>The animation system sharing is perfect for teaching complex rigs! 🦿</p>
+    <p className={styles.testimonialText}> random quote </p>
   </div>,
   <div key="26" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
@@ -191,9 +191,9 @@ const items = [
   <div key="27" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@curtisholt</span>
+      <span className={styles.username}>@zacfarmer</span>
     </div>
-    <p className={styles.testimonialText}>The real-time collaboration features are game-changing for team projects! 🤝</p>
+    <p className={styles.testimonialText}>"I love how it speeds up designer's workflow... this product and BlenderBin as a whole, is absolutely game changing."</p>
   </div>,
   <div key="28" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
