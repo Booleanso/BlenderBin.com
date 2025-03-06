@@ -52,7 +52,7 @@ const HeroSection = ({ scrollY }: HeroSectionProps) => {
         />
       </div>
     </div>
-  );
+  ); 
 };
 
 export default HeroSection;

@@ -37,8 +37,8 @@ export default function Footer() {
             <div className="footer-links">
               <Link href="/#subscriptions" className="footer-link">Pricing</Link>
               {/* <Link href="/downloads" className="footer-link">Downloads</Link> */}
-              <Link href="/docs" className="footer-link">Docs</Link>
-              <Link href="/forum" className="footer-link">Feedback</Link>
+              <Link href="https://metal-brow-307.notion.site/Docs-1ae4e2e320a68009a994e3d7133448e4?pvs=4" className="footer-link">Docs</Link>
+              {/* <Link href="/forum" className="footer-link">Feedback</Link> */}
             </div>
           </div>
           
@@ -54,8 +54,8 @@ export default function Footer() {
           <div className="footer-section">
             <h3>Resources</h3>
             <div className="footer-links">
-              <Link href="/terms" className="footer-link">Terms</Link>
-              <Link href="/privacy" className="footer-link">Privacy</Link>
+              <Link href="https://metal-brow-307.notion.site/Terms-and-Conditions-1ae4e2e320a680d7983fec849a6474d0?pvs=4" className="footer-link">Terms</Link>
+              {/* <Link href="/privacy" className="footer-link">Privacy</Link> */}
             </div>
           </div>
           
