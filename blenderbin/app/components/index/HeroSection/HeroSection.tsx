@@ -42,15 +42,20 @@ const HeroSection = ({ scrollY }: HeroSectionProps) => {
           </button>
         </div>
       </div>
-      <div className="first-square">
+
+      <div className="hero-image">
         <Image
-          className="hero-image"
           src="/BlenderBin-preview.svg"
           alt="BlenderBin Preview"
-          width={600}
-          height={400}
+          width={1500}
+          height={800}
+          priority
+          quality={100}
         />
       </div>
+      {/* <div className="first-square">
+        
+      </div> */}
     </div>
   ); 
 };
