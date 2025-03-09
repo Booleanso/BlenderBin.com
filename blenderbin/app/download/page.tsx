@@ -32,29 +32,42 @@ function DownloadingPlaceholder() {
 // Move all content to this component
 function DownloadContent() {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [autoDownloaded, setAutoDownloaded] = useState(false);
   const searchParams = useSearchParams();
 
   const initiateDownload = useCallback(async () => {
     try {
-      const response = await fetch(`/api/download?userId=${searchParams.get('userId')}`);
+      const userId = searchParams.get('userId');
+      const sessionId = searchParams.get('session_id');
+      
+      // Build the URL with available parameters
+      let downloadUrl = '/api/download?';
+      if (userId) downloadUrl += `userId=${userId}`;
+      if (sessionId) {
+        if (userId) downloadUrl += '&';
+        downloadUrl += `session_id=${sessionId}`;
+      }
+      
+      const response = await fetch(downloadUrl);
       if (response.ok) {
-        const { downloadUrl } = await response.json();
-        window.location.href = downloadUrl;
+        const { downloadUrl: fileUrl } = await response.json();
+        window.location.href = fileUrl;
         setIsDownloading(true);
+        
+        // Set autoDownloaded if this was triggered by the useEffect
+        if (!isDownloading) {
+          setAutoDownloaded(true);
+        }
       }
     } catch (error) {
       console.error('Download error:', error);
     }
-  }, [searchParams]);
+  }, [searchParams, isDownloading]);
 
   useEffect(() => {
-    // Start download after 2 seconds if userId is present
-    if (searchParams.get('userId')) {
-      const timer = setTimeout(() => {
-        initiateDownload();
-      }, 2000);
-
-      return () => clearTimeout(timer);
+    // Start download immediately if userId or session_id is present
+    if (searchParams.get('userId') || searchParams.get('session_id')) {
+      initiateDownload();
     }
   }, [initiateDownload, searchParams]);
 
@@ -68,11 +81,17 @@ function DownloadContent() {
           </h1>
           
           <div className="space-y-4">
-            <p className="text-gray-400">
-              Your download should begin automatically in a few seconds.
-            </p>
+            {autoDownloaded ? (
+              <p className="text-gray-400">
+                Your download has started automatically. If it doesn't appear in your downloads folder, click the button below.
+              </p>
+            ) : (
+              <p className="text-gray-400">
+                Your download should begin automatically in a few seconds.
+              </p>
+            )}
             
-            {isDownloading && (
+            {isDownloading && !autoDownloaded && (
               <p className="text-sm text-gray-500">
                 Download started! Check your downloads folder.
               </p>

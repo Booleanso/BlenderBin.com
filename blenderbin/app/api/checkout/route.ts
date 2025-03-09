@@ -21,6 +21,7 @@ async function getOrCreateStripeCustomer(userId: string) {
         // Create new live mode Stripe customer
         const newCustomer = await stripe.customers.create({
           email: user.email || undefined,
+          name: user.displayName || 'BlenderBin Customer',
           metadata: {
             firebaseUID: userId
           }
@@ -29,8 +30,20 @@ async function getOrCreateStripeCustomer(userId: string) {
         // Update the customer document with the new live mode customer ID
         await db.collection('customers').doc(userId).set({
           stripeId: newCustomer.id,
-          email: user.email
+          email: user.email,
+          name: user.displayName || 'BlenderBin Customer'
         }, { merge: true });
+
+        // Ensure subscriptions subcollection exists
+        const subscriptionsRef = db.collection('customers').doc(userId).collection('subscriptions');
+        const subscriptionsSnapshot = await subscriptionsRef.limit(1).get();
+        
+        if (subscriptionsSnapshot.empty) {
+          await subscriptionsRef.doc('placeholder').set({
+            placeholder: true,
+            created: new Date().toISOString()
+          });
+        }
 
         return newCustomer.id;
       }
@@ -44,15 +57,29 @@ async function getOrCreateStripeCustomer(userId: string) {
     
     const customer = await stripe.customers.create({
       email: user.email || undefined,
+      name: user.displayName || 'BlenderBin Customer',
       metadata: {
         firebaseUID: userId
       }
     });
 
+    // Create the customer document
     await db.collection('customers').doc(userId).set({
       stripeId: customer.id,
-      email: user.email
+      email: user.email,
+      name: user.displayName || 'BlenderBin Customer'
     }, { merge: true });
+
+    // Ensure subscriptions subcollection exists
+    const subscriptionsRef = db.collection('customers').doc(userId).collection('subscriptions');
+    const subscriptionsSnapshot = await subscriptionsRef.limit(1).get();
+    
+    if (subscriptionsSnapshot.empty) {
+      await subscriptionsRef.doc('placeholder').set({
+        placeholder: true,
+        created: new Date().toISOString()
+      });
+    }
 
     return customer.id;
   } catch (error) {
@@ -103,11 +130,15 @@ export async function POST(request: Request) {
         price: priceId,
         quantity: 1
       }],
-      success_url: `${process.env.NEXT_PUBLIC_URL}/download?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_URL}/download?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`,
       cancel_url: `${process.env.NEXT_PUBLIC_URL}/`,
       allow_promotion_codes: true,
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
+      customer_update: {
+        name: 'auto',
+        address: 'auto'
+      },
       client_reference_id: userId, // Critical for Firebase extension
       metadata: {
         firebaseUID: userId

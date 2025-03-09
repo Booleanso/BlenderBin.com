@@ -11,10 +11,12 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const sessionId = searchParams.get('session_id');
 
-    if (!userId) {
+    // Require either userId or session_id
+    if (!userId && !sessionId) {
       return NextResponse.json(
-        { error: 'Authentication required. Please sign in.' },
+        { error: 'Authentication required. Please sign in or provide a valid session.' },
         { status: 401 }
       );
     }
