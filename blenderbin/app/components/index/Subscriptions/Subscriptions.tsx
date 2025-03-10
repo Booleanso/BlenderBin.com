@@ -11,6 +11,8 @@ import styles from './Subscriptions.module.scss';
 interface SubscriptionStatus {
   isSubscribed: boolean;
   priceId?: string;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: string;
 }
 
 const Subscriptions = () => {
@@ -21,18 +23,15 @@ const Subscriptions = () => {
     isSubscribed: false
   });
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setUser(user);
       if (user) {
         try {
-          const response = await fetch(`/api/subscription/status?userId=${user.uid}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch subscription status');
-          }
-          const data = await response.json();
-          setSubscriptionStatus(data);
+          await fetchSubscriptionStatus(user.uid);
         } catch (error) {
           console.error('Error fetching subscription status:', error);
         }
@@ -42,6 +41,21 @@ const Subscriptions = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const fetchSubscriptionStatus = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/subscription/status?userId=${userId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch subscription status');
+      }
+      const data = await response.json();
+      setSubscriptionStatus(data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching subscription status:', error);
+      throw error;
+    }
+  };
 
   const handleCheckout = async (isYearly: boolean) => {
     if (!user) {
@@ -84,6 +98,9 @@ const Subscriptions = () => {
   const handleCancelSubscription = async () => {
     try {
       if (!user?.uid) return;
+      
+      setCancellingSubscription(true);
+      setCancelError('');
 
       const response = await fetch('/api/subscription/cancel', {
         method: 'POST',
@@ -95,17 +112,22 @@ const Subscriptions = () => {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to cancel subscription');
-
-      const statusResponse = await fetch(`/api/subscription/status?userId=${user.uid}`);
-      if (statusResponse.ok) {
-        const data = await statusResponse.json();
-        setSubscriptionStatus(data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to cancel subscription');
       }
 
+      // Refresh subscription status
+      await fetchSubscriptionStatus(user.uid);
       setCancelDialogOpen(false);
+      
+      // Refresh the page to ensure all UI components are updated
+      window.location.reload();
     } catch (error) {
       console.error('Error cancelling subscription:', error);
+      setCancelError(error instanceof Error ? error.message : 'Failed to cancel subscription');
+    } finally {
+      setCancellingSubscription(false);
     }
   };
 
@@ -114,6 +136,16 @@ const Subscriptions = () => {
     return subscriptionStatus.priceId === process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID
       ? 'yearly'
       : 'monthly';
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
   };
 
   if (loading) {
@@ -149,15 +181,22 @@ const Subscriptions = () => {
         <>
           {isPlanMatch && (
             <div className={styles.currentPlan}>
-              Your Current Plan
+              {subscriptionStatus.cancelAtPeriodEnd 
+                ? `Your Current Plan (Cancels on ${formatDate(subscriptionStatus.currentPeriodEnd)})` 
+                : 'Your Current Plan'}
             </div>
           )}
           <button 
             onClick={() => setCancelDialogOpen(true)}
             className={`${styles.actionButton} ${styles.cancelButton}`}
-            disabled={!isPlanMatch}
+            disabled={!isPlanMatch || subscriptionStatus.cancelAtPeriodEnd}
           >
-            {isPlanMatch ? 'Cancel Subscription' : `Subscribed to ${currentPlan === 'yearly' ? 'Yearly' : 'Monthly'}`}
+            {!isPlanMatch 
+              ? `Subscribed to ${currentPlan === 'yearly' ? 'Yearly' : 'Monthly'}`
+              : subscriptionStatus.cancelAtPeriodEnd
+                ? 'Cancellation Scheduled'
+                : 'Cancel Subscription'
+            }
           </button>
         </>
       );
@@ -220,7 +259,7 @@ const Subscriptions = () => {
           <DialogHeader>
             <DialogTitle>Cancel Subscription</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel your subscription? You'll lose access to:
+              Are you sure you want to cancel your subscription? You&apos;ll lose access to:
             </DialogDescription>
           </DialogHeader>
           <div className={styles.cancelDialogContent}>
@@ -229,19 +268,27 @@ const Subscriptions = () => {
                 <li key={index}>{feature}</li>
               ))}
             </ul>
+            <p className="text-red-500 mt-2 font-bold">
+              Your subscription will be canceled immediately and you will lose access right away.
+            </p>
+            {cancelError && (
+              <p className="text-red-500 mt-2">{cancelError}</p>
+            )}
           </div>
           <DialogFooter>
             <button 
               onClick={() => setCancelDialogOpen(false)}
               className={styles.cancelDialogButton}
+              disabled={cancellingSubscription}
             >
               Keep Subscription
             </button>
             <button 
               onClick={handleCancelSubscription}
               className={styles.cancelDialogButtonDanger}
+              disabled={cancellingSubscription}
             >
-              Yes, Cancel
+              {cancellingSubscription ? 'Cancelling...' : 'Yes, Cancel Now'}
             </button>
           </DialogFooter>
         </DialogContent>

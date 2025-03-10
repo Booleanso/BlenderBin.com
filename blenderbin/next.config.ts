@@ -6,8 +6,18 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'blenderbin.s3.us-east-2.amazonaws.com',
         port: '',
-        pathname: '/BACKEND/**',
+        pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+    domains: [
+      'blenderbin.s3.us-east-2.amazonaws.com',
+      's3.us-east-2.amazonaws.com',
     ],
   },
   eslint: {

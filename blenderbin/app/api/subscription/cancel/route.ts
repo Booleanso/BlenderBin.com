@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '../../../lib/firebase-admin';
-import { stripe } from '../../../lib/stripe';  // Import your existing stripe instance
+import { stripe } from '../../../lib/stripe';
 
 export async function POST(request: Request) {
   try {
@@ -13,11 +13,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Log the request for debugging
+    console.log('Cancellation request for user:', userId);
+
+    // Get active subscriptions for the user
     const subscriptionsSnapshot = await db
       .collection('customers')
       .doc(userId)
       .collection('subscriptions')
-      .where('status', '==', 'active')
+      .where('status', 'in', ['active', 'trialing'])
       .limit(1)
       .get();
 
@@ -31,47 +35,92 @@ export async function POST(request: Request) {
 
     const subscriptionDoc = subscriptionsSnapshot.docs[0];
     const subscriptionData = subscriptionDoc.data();
+    
+    console.log('Found subscription data:', JSON.stringify(subscriptionData, null, 2));
 
-    // Get the Stripe subscription ID
-    const stripeSubscriptionId = subscriptionData?.stripeSubscriptionId || subscriptionData?.items?.[0]?.subscription;
+    // Get the Stripe subscription ID from the document
+    // Based on the data structure shown in the image, we need to look for it in different places
+    let stripeSubscriptionId = null;
+    
+    // First check if it's in the document ID itself
+    if (subscriptionDoc.id.startsWith('sub_')) {
+      stripeSubscriptionId = subscriptionDoc.id;
+    } 
+    // Then check if it's in the data
+    else if (subscriptionData.id) {
+      stripeSubscriptionId = subscriptionData.id;
+    } 
+    // Check if it's in the stripeLink URL
+    else if (subscriptionData.stripeLink && typeof subscriptionData.stripeLink === 'string') {
+      const match = subscriptionData.stripeLink.match(/\/subscriptions\/([^\/]+)/);
+      if (match && match[1]) {
+        stripeSubscriptionId = match[1];
+      }
+    }
+    // Check if it's in the items array
+    else if (subscriptionData.items && Array.isArray(subscriptionData.items) && subscriptionData.items.length > 0) {
+      const item = subscriptionData.items[0];
+      if (item.id && item.id.startsWith('si_')) {
+        // If we have an item ID, we can use it to find the subscription
+        try {
+          const subscriptionItem = await stripe.subscriptionItems.retrieve(item.id);
+          stripeSubscriptionId = subscriptionItem.subscription;
+        } catch (error) {
+          console.error('Error retrieving subscription item:', error);
+        }
+      }
+    }
 
     if (!stripeSubscriptionId) {
+      console.error('No Stripe subscription ID found in document:', subscriptionDoc.id);
+      console.error('Subscription data:', subscriptionData);
       return NextResponse.json(
-        { error: 'No Stripe subscription ID found' },
+        { error: 'No Stripe subscription ID found in the subscription data' },
         { status: 400 }
       );
     }
 
     try {
-      // Cancel the subscription in Stripe
-      console.log('Cancelling Stripe subscription:', stripeSubscriptionId);
+      // Cancel the subscription in Stripe immediately
+      console.log('Cancelling Stripe subscription immediately:', stripeSubscriptionId);
+      
+      // Use cancel() to immediately cancel the subscription
       const canceledSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId);
 
-      if (canceledSubscription.status === 'canceled') {
-        // Update Firestore document
-        await subscriptionDoc.ref.update({
-          status: 'canceled',
-          cancel_at_period_end: true,
-          canceled_at: {
-            _seconds: Math.floor(Date.now() / 1000),
-            _nanoseconds: 0
-          },
-          ended_at: {
-            _seconds: Math.floor(Date.now() / 1000),
-            _nanoseconds: 0
-          }
-        });
+      console.log('Subscription canceled:', canceledSubscription.id, 'Status:', canceledSubscription.status);
 
+      // The Firebase extension will automatically update the subscription status in Firestore
+      // via the webhook, but we can also update it here for immediate feedback to the user
+      await subscriptionDoc.ref.update({
+        status: 'canceled',
+        canceled_at: new Date().toISOString(),
+        ended_at: new Date().toISOString()
+      });
+
+      // Return success response
+      return NextResponse.json(
+        { 
+          message: 'Subscription canceled successfully',
+          subscriptionId: stripeSubscriptionId,
+          status: canceledSubscription.status
+        },
+        { status: 200 }
+      );
+    } catch (stripeError) {
+      console.error('Stripe cancellation error:', stripeError);
+      
+      // If the error is because the subscription is already canceled, return success
+      if (stripeError instanceof Error && 
+          stripeError.message.includes('already been canceled')) {
         return NextResponse.json(
           { 
-            message: 'Subscription canceled successfully',
+            message: 'Subscription is already canceled',
             subscriptionId: stripeSubscriptionId
           },
           { status: 200 }
         );
       }
-    } catch (stripeError) {
-      console.error('Stripe cancellation error:', stripeError);
+      
       return NextResponse.json(
         { 
           error: 'Failed to cancel Stripe subscription',

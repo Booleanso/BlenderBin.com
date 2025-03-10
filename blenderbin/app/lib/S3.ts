@@ -1,10 +1,16 @@
 // lib/S3.ts
-import { S3Client, GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+// Log environment variables for debugging (without exposing secrets)
+console.log('AWS Region from env:', process.env.AWS_REGION);
+console.log('AWS Bucket Name from env:', process.env.AWS_BUCKET_NAME);
+console.log('AWS Access Key ID available:', !!process.env.AWS_ACCESS_KEY_ID);
+console.log('AWS Secret Access Key available:', !!process.env.AWS_SECRET_ACCESS_KEY);
 
 // Initialize S3 client
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
+  region: process.env.AWS_REGION || 'us-east-2', // Provide a fallback region
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -16,6 +22,7 @@ export async function generateSignedDownloadUrl(
   key: string,
   expiresIn: number = 300
 ) {
+  console.log(`Generating signed URL for bucket: ${bucket}, key: ${key}`);
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: key,
@@ -25,6 +32,7 @@ export async function generateSignedDownloadUrl(
     const signedUrl = await getSignedUrl(s3Client, command, {
       expiresIn,
     });
+    console.log(`Generated signed URL: ${signedUrl}`);
     return signedUrl;
   } catch (error) {
     console.error("Error generating signed URL:", error);
@@ -98,4 +106,4 @@ export async function getIconsMap(bucket: string, prefix: string) {
   }
 }
 
-export { s3Client };
+export { s3Client, PutObjectCommand };

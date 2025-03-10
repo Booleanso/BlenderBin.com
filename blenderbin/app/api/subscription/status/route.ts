@@ -36,11 +36,18 @@ export async function GET(request: Request) {
     // Get the first active subscription
     const subscription = subscriptionsSnapshot.docs[0].data();
     
+    // Check if the subscription is set to cancel at the end of the period
+    const isCanceling = subscription.cancel_at_period_end === true;
+    
     return NextResponse.json({
       isSubscribed: true,
       priceId: subscription.price.id,
       subscriptionId: subscription.id,
-      status: subscription.status
+      status: subscription.status,
+      cancelAtPeriodEnd: isCanceling,
+      currentPeriodEnd: subscription.current_period_end ? 
+        new Date(subscription.current_period_end._seconds * 1000).toISOString() : 
+        null
     });
   } catch (error) {
     console.error('Error checking subscription status:', error);
