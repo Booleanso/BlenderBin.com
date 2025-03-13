@@ -184,9 +184,9 @@ const items = [
   <div key="26" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
       <div className={styles.quoteSymbol}>"</div>
-      <span className={styles.username}>@chrisprenninger</span>
+      <span className={styles.username}>@kevinvincentvera</span>
     </div>
-    <p className={styles.testimonialText}>Geometry nodes sharing makes procedural workflows so much better! 📊</p>
+    <p className={styles.testimonialText}>BlenderBin is a new caliber of addon. It's meant to change the space immensely.</p>
   </div>,
   <div key="27" className={styles.testimonialCard}>
     <div className={styles.userInfo}>
