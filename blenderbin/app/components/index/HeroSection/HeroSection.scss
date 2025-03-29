@@ -166,9 +166,9 @@
             z-index: -1;
             background: linear-gradient(
                 45deg,
-                rgba(255, 140, 0, 0.7),
+                rgba(135, 206, 250, 0.7), /* light blue */
                 rgba(255, 255, 255, 0.7),
-                rgba(30, 144, 255, 0.7)
+                rgba(0, 191, 255, 0.7) /* neon blue */
             );
             background-size: 300% 300%;
             animation: gradientMove 15s ease infinite;
@@ -273,23 +273,23 @@
         
         @keyframes gradientShadow {
             0% {
-                box-shadow: 0 0 30px 15px rgba(255, 140, 0, 0.6), 0 0 60px 30px rgba(30, 144, 255, 0.3), 0 0 90px 45px rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 30px 15px rgba(0, 191, 255, 0.6), 0 0 60px 30px rgba(135, 206, 250, 0.3), 0 0 90px 45px rgba(255, 255, 255, 0.2);
                 transform: translateY(0) scale(1);
             }
             25% {
-                box-shadow: 0 0 40px 20px rgba(255, 255, 255, 0.7), 0 0 70px 35px rgba(255, 140, 0, 0.4), 0 0 100px 50px rgba(30, 144, 255, 0.3);
+                box-shadow: 0 0 40px 20px rgba(255, 255, 255, 0.7), 0 0 70px 35px rgba(135, 206, 250, 0.4), 0 0 100px 50px rgba(0, 191, 255, 0.3);
                 transform: translateY(-5px) scale(1.01);
             }
             50% {
-                box-shadow: 0 0 30px 15px rgba(30, 144, 255, 0.6), 0 0 60px 30px rgba(255, 255, 255, 0.4), 0 0 90px 45px rgba(255, 140, 0, 0.3);
+                box-shadow: 0 0 30px 15px rgba(0, 191, 255, 0.6), 0 0 60px 30px rgba(255, 255, 255, 0.4), 0 0 90px 45px rgba(135, 206, 250, 0.3);
                 transform: translateY(0) scale(1);
             }
             75% {
-                box-shadow: 0 0 40px 20px rgba(255, 140, 0, 0.7), 0 0 70px 35px rgba(30, 144, 255, 0.4), 0 0 100px 50px rgba(255, 255, 255, 0.3);
+                box-shadow: 0 0 40px 20px rgba(135, 206, 250, 0.7), 0 0 70px 35px rgba(0, 191, 255, 0.4), 0 0 100px 50px rgba(255, 255, 255, 0.3);
                 transform: translateY(-5px) scale(1.01);
             }
             100% {
-                box-shadow: 0 0 30px 15px rgba(255, 140, 0, 0.6), 0 0 60px 30px rgba(30, 144, 255, 0.3), 0 0 90px 45px rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 30px 15px rgba(0, 191, 255, 0.6), 0 0 60px 30px rgba(135, 206, 250, 0.3), 0 0 90px 45px rgba(255, 255, 255, 0.2);
                 transform: translateY(0) scale(1);
             }
         }
