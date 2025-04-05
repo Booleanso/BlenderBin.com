@@ -160,7 +160,14 @@ export default function AuthPage(): React.ReactElement {
       }
 
       setFormData({ email: '', password: '' });
-      router.push(redirectTo);
+      
+      // Special handling for download redirect
+      if (redirectTo === 'download') {
+        router.push(`/download?userId=${userCredential.user.uid}`);
+      } else {
+        router.push(redirectTo);
+      }
+      
       router.refresh();
 
     } catch (error) {

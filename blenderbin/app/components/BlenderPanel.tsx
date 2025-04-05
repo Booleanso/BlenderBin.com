@@ -140,7 +140,16 @@ export default function NavBar() {
       if (!response.ok) throw new Error('Checkout failed');
       
       const { sessionId } = await response.json();
-      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+      
+      // Use test key for localhost, live key for production
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const publishableKey = isDevelopment
+        ? process.env.NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY
+        : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+        
+      console.log(`Using Stripe key for ${isDevelopment ? 'development' : 'production'}`);
+      
+      const stripe = await loadStripe(publishableKey!);
       if (!stripe) throw new Error('Failed to load Stripe');
       
       await stripe.redirectToCheckout({ sessionId });

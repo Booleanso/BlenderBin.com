@@ -90,6 +90,9 @@ async function getOrCreateStripeCustomer(userId: string) {
 
 export async function POST(request: Request) {
   try {
+    // Check if we're in development mode for localhost
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
     const body = await request.json();
     const { userId, priceId } = body;
 
@@ -99,6 +102,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Log environment for debugging
+    console.log(`Processing checkout in ${isDevelopment ? 'development' : 'production'} mode`);
 
     // Get or create Stripe customer
     const stripeCustomerId = await getOrCreateStripeCustomer(userId);
@@ -110,9 +116,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // Map the price ID based on environment
+    let actualPriceId = priceId;
+    
+    // In development, use test price IDs
+    if (isDevelopment) {
+      // Map production price IDs to test price IDs
+      const priceIdMap: Record<string, string> = {
+        [process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID || '',
+        [process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID || ''
+      };
+      
+      // Use mapped test price ID if available
+      actualPriceId = priceIdMap[priceId] || priceId;
+      console.log(`Mapped price ID ${priceId} to test price ID ${actualPriceId}`);
+    }
+
     // Verify the price ID exists
     try {
-      await stripe.prices.retrieve(priceId);
+      await stripe.prices.retrieve(actualPriceId);
     } catch (error) {
       console.error('Error retrieving price:', error);
       return NextResponse.json(
@@ -121,17 +143,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // Set appropriate success and cancel URLs based on environment
+    const baseUrl = isDevelopment
+      ? process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'
+      : 'https://blenderbin.com';
+      
     // Create checkout session with updated parameters for Firebase extension
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{
-        price: priceId,
+        price: actualPriceId,
         quantity: 1
       }],
-      success_url: `${process.env.NEXT_PUBLIC_URL}/download?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_URL}/`,
+      subscription_data: {
+        trial_period_days: 7 // Add 7-day free trial for all subscriptions
+      },
+      success_url: `${baseUrl}/download?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`,
+      cancel_url: `${baseUrl}/`,
       allow_promotion_codes: true,
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
@@ -141,7 +171,10 @@ export async function POST(request: Request) {
       },
       client_reference_id: userId, // Critical for Firebase extension
       metadata: {
-        firebaseUID: userId
+        firebaseUID: userId,
+        environment: isDevelopment ? 'development' : 'production',
+        originalPriceId: priceId,
+        mappedPriceId: actualPriceId
       }
     });
 
@@ -150,7 +183,10 @@ export async function POST(request: Request) {
       sessionId: session.id,
       created: new Date().toISOString(),
       priceId: priceId,
-      status: 'created'
+      actualPriceId: actualPriceId,
+      status: 'created',
+      trial_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Add trial end date
+      environment: isDevelopment ? 'development' : 'production'
     });
 
     return NextResponse.json({ sessionId: session.id });

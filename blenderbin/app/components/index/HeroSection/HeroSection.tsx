@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { auth } from "../../../lib/firebase-client";
+import { User } from "firebase/auth";
 import "./HeroSection.scss";
 
 interface HeroSectionProps { 
@@ -11,6 +13,17 @@ interface HeroSectionProps {
 
 const HeroSection = ({ scrollY }: HeroSectionProps) => {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Listen for auth state changes
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Calculate opacity based on scroll position
   const opacity = Math.max(0, 1 - scrollY / 500); // Adjust 500 to control fade speed
 
@@ -18,6 +31,16 @@ const HeroSection = ({ scrollY }: HeroSectionProps) => {
     const element = document.getElementById('subscriptions');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleDownloadClick = () => {
+    // If user is logged in, go directly to download page
+    if (user) {
+      router.push(`/download?userId=${user.uid}`);
+    } else {
+      // Otherwise go to auth first with from parameter
+      router.push('/auth?from=download');
     }
   };
 
@@ -35,7 +58,7 @@ const HeroSection = ({ scrollY }: HeroSectionProps) => {
         <div className="hero-buttons">
           <button onClick={scrollToSubscriptions} className="hero-button">Get Started</button>
           <button 
-            onClick={() => router.push('/download')} 
+            onClick={handleDownloadClick} 
             className="hero-button hero-button-secondary"
           >
             Download for Free

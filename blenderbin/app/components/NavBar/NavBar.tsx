@@ -349,7 +349,7 @@ const NavBar = () => {
               </div>
 
               {!subscriptionStatus.isSubscribed && (
-                <button onClick={scrollToSubscriptions} className={styles.signupButton}>See Subscriptions</button>
+                <button onClick={scrollToSubscriptions} className={styles.subscriptionsButton}>See Subscriptions</button>
               )}
               
               <button onClick={handleLogout} className={styles.downloadButton}>
@@ -360,7 +360,7 @@ const NavBar = () => {
             <>
               <Link href="/auth" className={styles.loginButton}>Log in</Link>
               <Link href="/auth" className={styles.signupButton}>Sign up</Link>
-              <button onClick={scrollToSubscriptions} className={styles.signupButton}>See Subscriptions</button>
+              <button onClick={scrollToSubscriptions} className={styles.subscriptionsButton}>See Subscriptions</button>
             </>
           )}
         </div>

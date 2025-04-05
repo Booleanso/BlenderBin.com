@@ -102,6 +102,27 @@
           background: rgba(255, 255, 255, 0.2);
         }
       }
+
+      .subscriptionsButton {
+        background: linear-gradient(135deg, #23e596, #0ebac6);
+        color: #003526;
+        font-weight: 600;
+        padding: 8px 20px;
+        border-radius: 55px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(14, 186, 198, 0.5);
+        animation: pulse 2s infinite;
+  
+        &:hover {
+          background: linear-gradient(135deg, #1dd688, #0ca8b3);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(14, 186, 198, 0.6);
+        }
+      }
   
       .logoutButton {
         padding: 8px 20px;
@@ -164,5 +185,17 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(35, 229, 150, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(35, 229, 150, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(35, 229, 150, 0);
   }
 }

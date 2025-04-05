@@ -82,7 +82,16 @@ const Subscriptions = () => {
       if (!response.ok) throw new Error('Checkout failed');
       
       const { sessionId } = await response.json();
-      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+      
+      // Use test key for localhost, live key for production
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const publishableKey = isDevelopment
+        ? process.env.NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY
+        : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+        
+      console.log(`Using Stripe key for ${isDevelopment ? 'development' : 'production'}`);
+      
+      const stripe = await loadStripe(publishableKey!);
       if (!stripe) throw new Error('Failed to load Stripe');
       
       await stripe.redirectToCheckout({ sessionId });
@@ -148,6 +157,16 @@ const Subscriptions = () => {
     });
   };
 
+  const handleDownloadRedirect = () => {
+    // If user is logged in, go directly to download page
+    if (user) {
+      router.push(`/download?userId=${user.uid}`);
+    } else {
+      // Otherwise go to auth first with from parameter
+      router.push('/auth?from=download');
+    }
+  };
+
   if (loading) {
     return <div className={styles.loading}>Loading...</div>;
   }
@@ -159,6 +178,14 @@ const Subscriptions = () => {
     'Artist collaborations',
     'Offline add-on usage',
     'Future add-ons included'
+  ];
+
+  const freeFeatures = [
+    'Basic BlenderBin addon',
+    'Essential rendering tools',
+    'Standard model generation',
+    'Free updates to basic version',
+    'Community forum access'
   ];
 
   const renderActionButton = (isYearly: boolean) => {
@@ -218,6 +245,29 @@ const Subscriptions = () => {
       <p className={styles.description}>Select the plan that best fits your needs</p>
       
       <div className={styles.plansContainer}>
+        {/* Free Plan */}
+        <div className={styles.freePlanCard}>
+          <div className={styles.freePlanHeader}>
+            <div className={styles.freeBadge}>Free Forever</div>
+            <h3>Free Plan</h3>
+            <div className={styles.freePrice}>
+              <span className={styles.amount}>$0</span>
+              <span className={styles.interval}> / forever</span>
+            </div>
+          </div>
+          <ul className={styles.freeFeatures}>
+            {freeFeatures.map((feature, index) => (
+              <li key={index}>{feature}</li>
+            ))}
+          </ul>
+          <button 
+            onClick={handleDownloadRedirect}
+            className={styles.freeActionButton}
+          >
+            Download Now
+          </button>
+        </div>
+
         {/* Monthly Plan */}
         <div className={`${styles.planCard} ${getCurrentPlan() === 'monthly' ? styles.currentPlan : ''}`}>
           <div className={styles.planHeader}>
