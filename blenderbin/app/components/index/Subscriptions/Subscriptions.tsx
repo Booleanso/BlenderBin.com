@@ -13,6 +13,7 @@ interface SubscriptionStatus {
   priceId?: string;
   cancelAtPeriodEnd?: boolean;
   currentPeriodEnd?: string;
+  status?: string;
 }
 
 const Subscriptions = () => {
@@ -203,38 +204,48 @@ const Subscriptions = () => {
     if (subscriptionStatus.isSubscribed) {
       const currentPlan = getCurrentPlan();
       const isPlanMatch = isYearly ? currentPlan === 'yearly' : currentPlan === 'monthly';
+      const isTrialing = subscriptionStatus.status === 'trialing';
       
       return (
         <>
           {isPlanMatch && (
             <div className={styles.currentPlan}>
-              {subscriptionStatus.cancelAtPeriodEnd 
-                ? `Your Current Plan (Cancels on ${formatDate(subscriptionStatus.currentPeriodEnd)})` 
-                : 'Your Current Plan'}
+              {isTrialing ? 'Free Trial Active' : 
+                subscriptionStatus.cancelAtPeriodEnd 
+                  ? `Your Current Plan (Cancels on ${formatDate(subscriptionStatus.currentPeriodEnd)})` 
+                  : 'Your Current Plan'}
             </div>
           )}
           <button 
             onClick={() => setCancelDialogOpen(true)}
-            className={`${styles.actionButton} ${styles.cancelButton}`}
+            className={`${styles.actionButton} ${styles.cancelButton} ${isTrialing ? styles.trialButton : ''}`}
             disabled={!isPlanMatch || subscriptionStatus.cancelAtPeriodEnd}
           >
             {!isPlanMatch 
-              ? `Subscribed to ${currentPlan === 'yearly' ? 'Yearly' : 'Monthly'}`
-              : subscriptionStatus.cancelAtPeriodEnd
-                ? 'Cancellation Scheduled'
-                : 'Cancel Subscription'
+              ? isTrialing
+                ? 'In Free Trial'
+                : `Subscribed to ${currentPlan === 'yearly' ? 'Yearly' : 'Monthly'}`
+              : isTrialing
+                ? 'Cancel Free Trial'
+                : subscriptionStatus.cancelAtPeriodEnd
+                  ? 'Cancellation Scheduled'
+                  : 'Cancel Subscription'
             }
           </button>
         </>
       );
     }
 
+    // Check if user has any active subscription in trial mode
+    const isInAnyTrial = subscriptionStatus.status === 'trialing';
+
     return (
       <button 
         onClick={() => handleCheckout(isYearly)}
-        className={`${styles.actionButton} ${isYearly ? styles.featuredButton : ''}`}
+        className={`${styles.actionButton} ${isYearly ? styles.featuredButton : ''} ${isInAnyTrial ? styles.trialButton : ''}`}
+        disabled={isInAnyTrial}
       >
-        Buy Now
+        {isInAnyTrial ? 'In Free Trial' : 'Buy Now'}
       </button>
     );
   };
@@ -307,9 +318,9 @@ const Subscriptions = () => {
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Subscription</DialogTitle>
+            <DialogTitle>{subscriptionStatus.status === 'trialing' ? 'Cancel Free Trial' : 'Cancel Subscription'}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel your subscription? You&apos;ll lose access to:
+              Are you sure you want to cancel your {subscriptionStatus.status === 'trialing' ? 'free trial' : 'subscription'}? You&apos;ll lose access to:
             </DialogDescription>
           </DialogHeader>
           <div className={styles.cancelDialogContent}>
@@ -319,7 +330,7 @@ const Subscriptions = () => {
               ))}
             </ul>
             <p className="text-red-500 mt-2 font-bold">
-              Your subscription will be canceled immediately and you will lose access right away.
+              Your {subscriptionStatus.status === 'trialing' ? 'free trial' : 'subscription'} will be canceled immediately and you will lose access right away.
             </p>
             {cancelError && (
               <p className="text-red-500 mt-2">{cancelError}</p>
@@ -331,14 +342,14 @@ const Subscriptions = () => {
               className={styles.cancelDialogButton}
               disabled={cancellingSubscription}
             >
-              Keep Subscription
+              {subscriptionStatus.status === 'trialing' ? 'Keep Free Trial' : 'Keep Subscription'}
             </button>
             <button 
               onClick={handleCancelSubscription}
               className={styles.cancelDialogButtonDanger}
               disabled={cancellingSubscription}
             >
-              {cancellingSubscription ? 'Cancelling...' : 'Yes, Cancel Now'}
+              {cancellingSubscription ? 'Cancelling...' : `Yes, Cancel ${subscriptionStatus.status === 'trialing' ? 'Trial' : 'Now'}`}
             </button>
           </DialogFooter>
         </DialogContent>

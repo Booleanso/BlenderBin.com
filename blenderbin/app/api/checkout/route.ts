@@ -41,6 +41,7 @@ async function getOrCreateStripeCustomer(userId: string) {
         if (subscriptionsSnapshot.empty) {
           await subscriptionsRef.doc('placeholder').set({
             placeholder: true,
+            status: true,
             created: new Date().toISOString()
           });
         }
@@ -77,6 +78,7 @@ async function getOrCreateStripeCustomer(userId: string) {
     if (subscriptionsSnapshot.empty) {
       await subscriptionsRef.doc('placeholder').set({
         placeholder: true,
+        status: true,
         created: new Date().toISOString()
       });
     }
@@ -188,6 +190,10 @@ export async function POST(request: Request) {
       trial_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Add trial end date
       environment: isDevelopment ? 'development' : 'production'
     });
+
+    // Ensure that the placeholder document has the status: true field
+    const placeholderRef = db.collection('customers').doc(userId).collection('subscriptions').doc('placeholder');
+    await placeholderRef.set({ status: "trialing" }, { merge: true });
 
     return NextResponse.json({ sessionId: session.id });
   } catch (error: unknown) {

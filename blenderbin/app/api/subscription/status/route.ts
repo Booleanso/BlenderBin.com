@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ isSubscribed: false });
     }
 
-    // Get all active subscriptions for this customer
+    // Look for subscriptions with active or trialing status
     const subscriptionsSnapshot = await db
       .collection('customers')
       .doc(userId)
@@ -29,25 +29,64 @@ export async function GET(request: Request) {
       .where('status', 'in', ['active', 'trialing'])
       .get();
 
-    if (subscriptionsSnapshot.empty) {
+    // Check for placeholder documents with status field set to "trialing"
+    const placeholderSnapshot = await db
+      .collection('customers')
+      .doc(userId)
+      .collection('subscriptions')
+      .where('status', '==', 'trialing')
+      .get();
+
+    // If we don't have active or trialing subscriptions in either query
+    if (subscriptionsSnapshot.empty && placeholderSnapshot.empty) {
       return NextResponse.json({ isSubscribed: false });
     }
 
-    // Get the first active subscription
-    const subscription = subscriptionsSnapshot.docs[0].data();
+    // Prioritize the regular subscription records
+    let subscription;
+    let isTrialOnly = false;
     
-    // Check if the subscription is set to cancel at the end of the period
+    if (!subscriptionsSnapshot.empty) {
+      subscription = subscriptionsSnapshot.docs[0].data();
+    } else if (!placeholderSnapshot.empty) {
+      subscription = placeholderSnapshot.docs[0].data();
+      isTrialOnly = true;
+    } else {
+      return NextResponse.json({ isSubscribed: false });
+    }
+    
+    // Check if the subscription is set to cancel at the end of the period - safely
     const isCanceling = subscription.cancel_at_period_end === true;
+    
+    // Safely determine status, default to active if not specified
+    const status = subscription.status || 'active';
+    
+    // Safely extract price ID
+    let priceId = null;
+    if (subscription.price && typeof subscription.price === 'object' && subscription.price.id) {
+      priceId = subscription.price.id;
+    }
+    
+    // Safely get current period end timestamp
+    let currentPeriodEnd = null;
+    if (subscription.current_period_end) {
+      if (typeof subscription.current_period_end === 'object' && subscription.current_period_end._seconds) {
+        currentPeriodEnd = new Date(subscription.current_period_end._seconds * 1000).toISOString();
+      } else if (subscription.current_period_end instanceof Date) {
+        currentPeriodEnd = subscription.current_period_end.toISOString();
+      } else if (typeof subscription.current_period_end === 'string') {
+        currentPeriodEnd = subscription.current_period_end;
+      }
+    }
     
     return NextResponse.json({
       isSubscribed: true,
-      priceId: subscription.price.id,
-      subscriptionId: subscription.id,
-      status: subscription.status,
+      priceId: priceId,
+      subscriptionId: subscription.id || 'placeholder',
+      status: status,
       cancelAtPeriodEnd: isCanceling,
-      currentPeriodEnd: subscription.current_period_end ? 
-        new Date(subscription.current_period_end._seconds * 1000).toISOString() : 
-        null
+      currentPeriodEnd: currentPeriodEnd,
+      isTrialOnly: isTrialOnly
     });
   } catch (error) {
     console.error('Error checking subscription status:', error);

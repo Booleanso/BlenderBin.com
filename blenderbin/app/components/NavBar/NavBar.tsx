@@ -16,6 +16,7 @@ interface SubscriptionStatus {
   priceId?: string;
   cancelAtPeriodEnd?: boolean;
   currentPeriodEnd?: string;
+  status?: string;
 }
 
 const NavBar = () => {
@@ -381,7 +382,7 @@ const NavBar = () => {
               <div className="flex items-center space-x-4">
                 <div className="w-20 h-20 rounded-full overflow-hidden">
                   {profilePicUrl && !profilePicError ? (
-                    <img
+                    <Image
                       src={`${profilePicUrl}${profilePicUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`}
                       alt="Profile"
                       width={80}
@@ -465,6 +466,23 @@ const NavBar = () => {
                   <div className="text-sm text-amber-500 mb-2">
                     Your subscription will cancel on {new Date(subscriptionStatus.currentPeriodEnd || '').toLocaleDateString()}
                   </div>
+                ) : subscriptionStatus.status === 'trialing' ? (
+                  <>
+                    <div className="text-sm text-blue-500 mb-2">
+                      You are currently in your free trial period
+                      {subscriptionStatus.currentPeriodEnd && (
+                        <span className="block mt-1">
+                          Trial ends on: {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleUnsubscribe}
+                      className="w-full bg-red-100 hover:bg-red-200 text-red-900 px-4 py-2 rounded-md text-sm font-medium"
+                    >
+                      Cancel Free Trial
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={handleUnsubscribe}
