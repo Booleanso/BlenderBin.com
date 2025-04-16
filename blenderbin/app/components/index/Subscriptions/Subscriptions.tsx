@@ -60,7 +60,7 @@ const Subscriptions = () => {
 
   const handleCheckout = async (isYearly: boolean) => {
     if (!user) {
-      router.push('/auth');
+      router.push('/signup');
       return;
     }
     
@@ -102,7 +102,7 @@ const Subscriptions = () => {
   };
 
   const handleAuthRedirect = () => {
-    router.push('/auth');
+    router.push('/signup');
   };
 
   const handleCancelSubscription = async () => {
@@ -164,7 +164,7 @@ const Subscriptions = () => {
       router.push(`/download?userId=${user.uid}`);
     } else {
       // Otherwise go to auth first with from parameter
-      router.push('/auth?from=download');
+      router.push('/signup?from=download');
     }
   };
 

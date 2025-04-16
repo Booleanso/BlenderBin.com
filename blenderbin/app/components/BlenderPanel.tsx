@@ -249,7 +249,7 @@ export default function NavBar() {
               </>
             ) : (
               <div className="button-wrapper">
-                <Link href="/auth" className="navbar-button">Sign In / Sign Up</Link>
+                <Link href="/signup" className="navbar-button">Sign In / Sign Up</Link>
               </div>
             )}
           </div>

@@ -359,8 +359,8 @@ const NavBar = () => {
             </>
           ) : (
             <>
-              <Link href="/auth" className={styles.loginButton}>Log in</Link>
-              <Link href="/auth" className={styles.signupButton}>Sign up</Link>
+              <Link href="/signup" className={styles.loginButton}>Log in</Link>
+              <Link href="/signup" className={styles.signupButton}>Sign up</Link>
               <button onClick={scrollToSubscriptions} className={styles.subscriptionsButton}>See Subscriptions</button>
             </>
           )}

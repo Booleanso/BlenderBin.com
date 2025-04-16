@@ -90,7 +90,7 @@ function DownloadContent() {
 
   const redirectToSignIn = () => {
     // Redirect to sign-in page
-    router.push('/auth');
+    router.push('/signup');
   };
 
   const initiateDownload = useCallback(async () => {
