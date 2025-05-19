@@ -39,8 +39,8 @@ const HeroSection = ({ scrollY }: HeroSectionProps) => {
     if (user) {
       router.push(`/download?userId=${user.uid}`);
     } else {
-      // Otherwise go to auth first with from parameter
-      router.push('/auth?from=download');
+      // Otherwise go to signup page with from parameter
+      router.push('/signup?from=download');
     }
   };
 
