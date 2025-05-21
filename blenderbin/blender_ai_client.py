@@ -1663,6 +1663,7 @@ class GIZMO_OT_input_field(Operator):
 def register():
     # Model choices for the dropdown
     model_items = [
+        ('claude-3-7-sonnet-20240620', 'Claude 3.7 Sonnet', 'Claude 3.7 Sonnet model'),
         ('claude-3-5-sonnet-20240620', 'Claude 3.5 Sonnet', 'Claude 3.5 Sonnet model'),
         ('claude-3-opus-20240229', 'Claude 3 Opus', 'Claude 3 Opus model - most powerful'),
         ('claude-3-sonnet-20240229', 'Claude 3 Sonnet', 'Claude 3 Sonnet model - balanced'),
