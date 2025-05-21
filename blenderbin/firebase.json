@@ -78,7 +78,14 @@
   "remoteconfig": {
     "template": "remoteconfig.template.json"
   },
-  "extensions": {},
+  "extensions": {
+    "firestore-stripe-payments": {
+      "stripe": {
+        "apiKey": "${STRIPE_API_KEY}",
+        "webhookSecret": "${STRIPE_WEBHOOK_SECRET}"
+      }
+    }
+  },
   "database": {
     "rules": "database.rules.json"
   }

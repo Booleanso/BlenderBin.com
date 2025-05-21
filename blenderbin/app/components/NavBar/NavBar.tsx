@@ -343,9 +343,14 @@ const NavBar = () => {
                 </button>
 
                 {subscriptionStatus.isSubscribed && (
-                  <button onClick={handleRedownload} className={styles.downloadButton}>
-                    Re-Download
-                  </button>
+                  <>
+                    <button onClick={handleRedownload} className={styles.downloadButton}>
+                      Re-Download
+                    </button>
+                    <Link href="/dashboard" className={styles.dashboardButton}>
+                      Dashboard
+                    </Link>
+                  </>
                 )}
               </div>
 

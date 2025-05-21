@@ -52,6 +52,7 @@ export const config = {
     '/profile/:path*',
     '/settings/:path*',
     '/dashboard/:path*',
+    '/api/gizmo/:path*',
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ]
 };
