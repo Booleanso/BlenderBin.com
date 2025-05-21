@@ -970,6 +970,9 @@ When asked to write code, follow these guidelines:
 6. Use proper indentation with 4 spaces
 7. ALWAYS check object types before accessing type-specific attributes
 8. Use hasattr(obj, 'attribute_name') to check if attributes exist before using them
+9. Make sure when using Geometry Nodes, you are using the correct node type for the operation you want to perform.
+10. Make sure when using the Set Position node, you are using the correct axis for the operation you want to perform.
+11. Make sure you properly connect all nodes in your geometry nodes network.
 
 IMPORTANT CONSTRAINTS:
 - Use ONLY the built-in Blender Python API modules: bpy, bmesh, mathutils
