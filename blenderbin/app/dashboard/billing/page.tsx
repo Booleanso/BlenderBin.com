@@ -137,6 +137,24 @@ export default function BillingPage() {
           </h1>
         </div>
 
+        {/* Subscription Type Clarification */}
+        <div className="mb-6">
+          <div className="p-4 bg-blue-900/20 border border-blue-800/30 rounded-md text-blue-300">
+            <h3 className="text-md font-medium mb-2">Subscription Information</h3>
+            <p className="text-sm mb-3">
+              BlenderBin offers two separate subscription types:
+            </p>
+            <ul className="list-disc ml-5 text-sm space-y-1">
+              <li><strong>BlenderBin subscription</strong> - For access to all add-ons and tools</li>
+              <li><strong>Gizmo subscription</strong> - For AI features in Blender</li>
+            </ul>
+            <p className="mt-3 text-sm">
+              These are separate subscriptions that can be managed independently.
+              The information below shows details about your current subscription.
+            </p>
+          </div>
+        </div>
+        
         {/* Current Subscription */}
         <div className="mb-12">
           <h2 className="text-sm font-medium text-gray-400 uppercase mb-4">Current Subscription</h2>

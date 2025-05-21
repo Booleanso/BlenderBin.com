@@ -5,17 +5,31 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get session cookie for authentication
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session')?.value;
+    // Get auth token from Authorization header
+    const authHeader = request.headers.get('Authorization');
     
-    if (!sessionCookie) {
-      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    // If no auth header, try to get from session cookie
+    let decodedToken;
+    let uid = '';
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Use token from Authorization header
+      const token = authHeader.split('Bearer ')[1];
+      decodedToken = await auth.verifyIdToken(token);
+      uid = decodedToken.uid;
+    } else {
+      // Fall back to session cookie
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get('session')?.value;
+      
+      if (!sessionCookie) {
+        return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+      }
+      
+      // Verify the session cookie
+      decodedToken = await auth.verifySessionCookie(sessionCookie);
+      uid = decodedToken.uid;
     }
-    
-    // Verify the session cookie
-    const decodedToken = await auth.verifySessionCookie(sessionCookie);
-    const uid = decodedToken.uid;
     
     // Get request body for return URL if provided
     const body = await request.json().catch(() => ({}));
@@ -30,16 +44,49 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     
     const userData = userDoc.data();
     
-    // If the user doesn't have a Stripe customer ID, we can't create a billing portal session
+    // Check if the user has a Stripe customer ID
     if (!userData?.stripeCustomerId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No Stripe customer found for this user',
-        // Redirect to upgrade page instead
-        redirectUrl: '/dashboard?upgrade=true'
-      });
+      // No Stripe customer yet, create one
+      try {
+        const user = await auth.getUser(uid);
+        const email = user.email || 'unknown@example.com';
+        
+        // Create a new customer
+        const customer = await stripe.customers.create({
+          email: email,
+          metadata: {
+            firebaseUID: uid
+          }
+        });
+        
+        // Save the customer ID to the user's document
+        await db.collection('users').doc(uid).update({
+          stripeCustomerId: customer.id,
+          updatedAt: new Date()
+        });
+        
+        // Now create a billing portal session with the new customer
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customer.id,
+          return_url: returnUrl || `${request.headers.get('origin')}/dashboard`,
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          url: session.url,
+          newCustomer: true
+        });
+      } catch (error) {
+        console.error('Error creating Stripe customer:', error);
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Failed to create Stripe customer',
+          redirectUrl: '/pricing'
+        });
+      }
     }
     
+    // If we get here, the user has a Stripe customer ID
     // Create a billing portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: userData.stripeCustomerId,

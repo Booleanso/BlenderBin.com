@@ -2,6 +2,194 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios, { AxiosError } from 'axios';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
+// Add Firebase Admin SDK imports
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+
+// Initialize Firebase Admin if not already initialized
+if (!getApps().length) {
+  try {
+    // Check if the service account key is provided as an environment variable
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      console.warn('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. Analytics will not be recorded.');
+      // Initialize with a default config to prevent errors, but analytics won't work
+      initializeApp({
+        projectId: 'blenderbin-default'
+      });
+    } else {
+      // Parse the service account key JSON
+      let serviceAccount;
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        
+        // Verify the required fields are present
+        if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+          throw new Error('Service account key is missing required fields');
+        }
+        
+        // Initialize with the service account
+        initializeApp({
+          credential: cert(serviceAccount),
+        });
+        console.log(`Firebase Admin initialized successfully for project: ${serviceAccount.project_id}`);
+      } catch (parseError) {
+        console.error('Error parsing Firebase service account key:', parseError);
+        console.error('Make sure FIREBASE_SERVICE_ACCOUNT_KEY contains a valid JSON string');
+        
+        // Initialize with a default config to prevent errors
+        initializeApp({
+          projectId: 'blenderbin-default'
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Firebase Admin initialization error:', error);
+    console.error('Analytics functionality will be disabled');
+  }
+}
+
+// Get Firestore instance with error handling
+let db: FirebaseFirestore.Firestore;
+try {
+  db = getFirestore();
+  console.log('Firestore instance created successfully');
+} catch (error) {
+  console.error('Error getting Firestore instance:', error);
+  // Create a mock db object to prevent errors when trying to record analytics
+  db = {
+    collection: () => ({
+      doc: () => ({
+        set: async () => {},
+        update: async () => {},
+        get: async () => ({ exists: false }),
+      }),
+    }),
+    runTransaction: async (callback: (transaction: any) => Promise<any>) => {
+      await callback({ 
+        get: async () => ({ exists: false }),
+        set: async () => {},
+        update: async () => {},
+      });
+    },
+  } as any;
+  console.warn('Using mock Firestore instance - analytics will not be recorded');
+}
+
+// Function to record API usage in Firestore
+async function recordApiUsage(userId: string, model: string, prompt: string, analytics?: any, sceneInfo?: any) {
+  try {
+    if (!userId) {
+      console.log('No user ID provided, skipping usage tracking');
+      return;
+    }
+    
+    const now = Timestamp.now();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dailyKey = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    // Update user's API usage document
+    const userUsageRef = db.collection('api_usage').doc(userId);
+    
+    // Prepare additional analytics data if available
+    const clientInfo = analytics ? {
+      client_version: analytics.client_version || [],
+      blender_version: analytics.blender_version || "",
+      platform: analytics.platform || "",
+      session_id: analytics.session_id || "",
+    } : {};
+    
+    // Prepare scene complexity data if available
+    const sceneComplexity = analytics?.scene_complexity ? {
+      object_count: analytics.scene_complexity.object_count || 0,
+      collection_count: analytics.scene_complexity.collection_count || 0,
+      material_count: analytics.scene_complexity.material_count || 0,
+      has_active_object: analytics.scene_complexity.has_active_object || false,
+    } : {};
+    
+    // Create a transaction to ensure atomic updates
+    await db.runTransaction(async (transaction) => {
+      const userDoc = await transaction.get(userUsageRef);
+      
+      if (userDoc.exists) {
+        // Update existing document
+        transaction.update(userUsageRef, {
+          total_queries: FieldValue.increment(1),
+          last_query_time: now,
+          [`daily_counts.${dailyKey}`]: FieldValue.increment(1),
+          [`model_usage.${model}`]: FieldValue.increment(1),
+          queries: FieldValue.arrayUnion({
+            timestamp: now,
+            model: model,
+            prompt_length: prompt.length,
+            client_info: clientInfo,
+            scene_complexity: sceneComplexity,
+            // Don't store the full prompt for privacy, just metadata
+          }),
+        });
+        
+        // Update client information if available
+        if (Object.keys(clientInfo).length > 0) {
+          transaction.update(userUsageRef, {
+            client_info: clientInfo,
+            platform: analytics.platform || '',
+          });
+        }
+      } else {
+        // Create new document
+        transaction.set(userUsageRef, {
+          user_id: userId,
+          total_queries: 1,
+          first_query_time: now,
+          last_query_time: now,
+          daily_counts: {
+            [dailyKey]: 1
+          },
+          model_usage: {
+            [model]: 1
+          },
+          queries: [{
+            timestamp: now,
+            model: model,
+            prompt_length: prompt.length,
+            client_info: clientInfo,
+            scene_complexity: sceneComplexity,
+          }],
+          client_info: clientInfo,
+          platform: analytics?.platform || '',
+        });
+      }
+    });
+    
+    // Also update a detailed sessions collection for deeper analytics
+    if (analytics?.session_id) {
+      const sessionRef = db.collection('api_sessions').doc(analytics.session_id);
+      await sessionRef.set({
+        user_id: userId,
+        session_id: analytics.session_id,
+        last_activity: now,
+        query_count: FieldValue.increment(1),
+        client_info: clientInfo,
+        platform: analytics.platform || '',
+        scene_complexity: sceneComplexity,
+      }, { merge: true });
+    }
+    
+    // Also update an aggregate stats document
+    const statsRef = db.collection('analytics').doc('api_stats');
+    await statsRef.set({
+      total_queries: FieldValue.increment(1),
+      [`model_counts.${model}`]: FieldValue.increment(1),
+      [`platform_counts.${analytics?.platform || 'unknown'}`]: FieldValue.increment(1),
+      last_updated: now,
+    }, { merge: true });
+    
+    console.log(`Recorded API usage for user ${userId} using model ${model}`);
+  } catch (error) {
+    console.error('Error recording API usage to Firestore:', error);
+    // Don't throw error - this is non-critical
+  }
+}
 
 // Promisify zlib functions
 const zlibInflate = promisify(zlib.inflate);
@@ -61,6 +249,70 @@ async function compressData(data: any): Promise<CompressedPayload> {
 const chatMemory: ChatMessage[] = [];
 let lastExecution: any = null;
 let lastSuccessfulCode: string | null = null;
+
+// Freemium user tracking (using IP + session as identifier)
+// This is a simple in-memory store - will reset on server restart
+// For production, this should be moved to a database
+interface FreemiumUser {
+  ip: string;
+  sessionId: string;
+  queryCount: number;
+  lastQuery: Date;
+  firstQuery: Date;
+}
+
+const freemiumUsers: Record<string, FreemiumUser> = {};
+
+// Max queries per day for freemium users
+const FREEMIUM_DAILY_LIMIT = 20;
+
+// Function to get or create a freemium user record
+function getFreemiumUser(ip: string, sessionId: string): FreemiumUser {
+  const key = `${ip}:${sessionId}`;
+  
+  if (!freemiumUsers[key]) {
+    // Create new user record
+    freemiumUsers[key] = {
+      ip,
+      sessionId,
+      queryCount: 0,
+      lastQuery: new Date(),
+      firstQuery: new Date()
+    };
+  }
+  
+  // Check if it's a new day - reset counter if needed
+  const user = freemiumUsers[key];
+  const now = new Date();
+  const lastQueryDay = user.lastQuery.getDate();
+  const today = now.getDate();
+  
+  if (lastQueryDay !== today || 
+      user.lastQuery.getMonth() !== now.getMonth() || 
+      user.lastQuery.getFullYear() !== now.getFullYear()) {
+    console.log(`Resetting freemium user ${key} - new day`);
+    user.queryCount = 0;
+  }
+  
+  return user;
+}
+
+// Function to update freemium user query count
+function updateFreemiumUser(ip: string, sessionId: string): [boolean, string] {
+  const user = getFreemiumUser(ip, sessionId);
+  
+  // Check if user has reached daily limit
+  if (user.queryCount >= FREEMIUM_DAILY_LIMIT) {
+    return [false, `Daily limit of ${FREEMIUM_DAILY_LIMIT} queries reached. Please sign in or upgrade for more.`];
+  }
+  
+  // Update user data
+  user.queryCount += 1;
+  user.lastQuery = new Date();
+  
+  // Return success
+  return [true, `Query ${user.queryCount}/${FREEMIUM_DAILY_LIMIT} for today`];
+}
 
 // Configuration
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
@@ -1379,13 +1631,74 @@ export async function POST(req: NextRequest) {
       body = rawBody;
     }
     
-    const { prompt, history, type, scene_info, model } = body;
+    const { prompt, history, type, scene_info, model, auth } = body;
     
     // Log the model information if specified
     const selectedModel = model || DEFAULT_MODEL;
     const provider = MODEL_PROVIDERS[selectedModel as keyof typeof MODEL_PROVIDERS] || "anthropic";
     if (model) {
       console.log(`Request specifies model: ${selectedModel} (${provider})`);
+    }
+    
+    // Check authentication if provided
+    let isAuthenticated = false;
+    let userId = "";
+    let userEmail = "";
+    let analyticsData = null;
+    let usageBasedPricing = false;
+    let beyondPlanLimits = false;
+    let subscriptionTier = "free";
+    
+    if (auth && auth.token) {
+      try {
+        // Here you would normally verify the token with Firebase Admin SDK
+        // For simplicity in this demo, we're just checking for existence
+        console.log(`Request includes authentication token`);
+        isAuthenticated = true;
+        userId = auth.user_id || "";
+        
+        // Extract analytics data if available
+        if (auth.analytics) {
+          analyticsData = auth.analytics;
+          console.log(`Received analytics data from client: blender_version=${analyticsData.blender_version}, platform=${analyticsData.platform}`);
+        }
+        
+        // Check if using usage-based pricing
+        if (auth.usage_based_pricing) {
+          usageBasedPricing = auth.usage_based_pricing.enabled || false;
+          beyondPlanLimits = auth.usage_based_pricing.beyond_plan_limits || false;
+          console.log(`Request using usage-based pricing: ${usageBasedPricing}, beyond plan limits: ${beyondPlanLimits}`);
+        }
+        
+        // Get user's subscription tier
+        subscriptionTier = auth.subscription_tier || "free";
+      } catch (error) {
+        console.error("Error verifying authentication token:", error);
+      }
+    } else {
+      // Handle non-authenticated (freemium) users
+      // Get IP address and session ID for tracking
+      const ip = req.headers.get('x-forwarded-for') || 
+                req.headers.get('x-real-ip') || 
+                'unknown';
+      const sessionId = body.session_id || 'unknown';
+      
+      console.log(`Freemium user request from IP: ${ip}, Session: ${sessionId}`);
+      
+      // Check and update freemium user limit
+      const [canProceed, message] = updateFreemiumUser(ip, sessionId);
+      
+      if (!canProceed) {
+        console.log(`Freemium user limit reached: ${message}`);
+        return NextResponse.json({ 
+          success: false, 
+          error: message,
+          type: "error",
+          content: `⚠️ ${message}`
+        });
+      }
+      
+      console.log(`Freemium request allowed: ${message}`);
     }
     
     // Log scene information if available
@@ -1446,11 +1759,92 @@ export async function POST(req: NextRequest) {
       // Process the message history if provided
       const messageHistory: ChatMessage[] = Array.isArray(history) ? history : [];
       
+      // Record API usage to Firestore for authenticated users
+      if (isAuthenticated && userId) {
+        await recordApiUsage(userId, selectedModel, prompt, analyticsData, scene_info);
+        
+        // Record usage-based pricing if applicable
+        if (usageBasedPricing && beyondPlanLimits) {
+          try {
+            // Record this request for usage-based billing
+            const response = await fetch('/api/usage-tracking', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId,
+                model: selectedModel,
+                requestCount: 1,
+                tokenCount: 0, // Could calculate this from the response for token-based models
+              }),
+            });
+            
+            if (!response.ok) {
+              console.error(`Error recording usage-based pricing: ${response.statusText}`);
+            } else {
+              console.log('Successfully recorded usage-based pricing for this request');
+            }
+          } catch (error) {
+            console.error('Error calling usage-tracking API:', error);
+          }
+        }
+      } else {
+        console.log('Anonymous/freemium request, not recording usage to Firestore');
+      }
+      
       // Generate response with the selected model, passing scene info if available
       const response = await generateResponse(prompt, messageHistory, scene_info, selectedModel);
       
       // Sanitize the response
       const sanitizedResponse = sanitizeResponse(response);
+      
+      // Add freemium usage information for non-authenticated users
+      if (!isAuthenticated) {
+        const ip = req.headers.get('x-forwarded-for') || 
+                  req.headers.get('x-real-ip') || 
+                  'unknown';
+        const sessionId = body.session_id || 'unknown';
+        const user = getFreemiumUser(ip, sessionId);
+        
+        sanitizedResponse.freemium = {
+          queryCount: user.queryCount,
+          dailyLimit: FREEMIUM_DAILY_LIMIT,
+          remaining: FREEMIUM_DAILY_LIMIT - user.queryCount
+        };
+      }
+      
+      // Add authentication information if user is authenticated
+      if (isAuthenticated) {
+        try {
+          // Check user's subscription tier and usage-based pricing settings from Firestore
+          const userDoc = await db.collection('users').doc(userId).get();
+          const userData = userDoc.data() || {};
+          const subscriptionTier = userData.stripeRole || 'pro';
+          const usagePricingSettings = userData.usagePricingSettings || {};
+          
+          // In a real implementation, you would refresh the token here
+          sanitizedResponse.auth = {
+            token: auth.token,
+            user: {
+              uid: userId,
+              email: userEmail,
+              subscription_tier: subscriptionTier,
+              usage_based_pricing_enabled: usagePricingSettings.enableUsageBasedPricing || false
+            }
+          };
+        } catch (error) {
+          console.error('Error fetching user subscription tier:', error);
+          // Still include the authentication info without subscription tier
+          sanitizedResponse.auth = {
+            token: auth.token,
+            user: {
+              uid: userId,
+              email: userEmail
+            }
+          };
+        }
+      }
       
       // Determine if response should be compressed
       // Compress if original request was compressed and payload is large

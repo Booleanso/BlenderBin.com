@@ -32,5 +32,58 @@ service cloud.firestore {
       // allow create: if request.auth != null;
       // allow update, delete: if request.auth.uid == resource.data.creatorUid;
     }
+    
+    // Rules for API usage analytics
+    match /api_usage/{userId} {
+      // Users can only read their own usage data
+      allow read: if request.auth.uid == userId;
+      // Write operations are only performed by server
+      allow write: if false;
+    }
+    
+    match /api_sessions/{sessionId} {
+      // Users can read their own session data
+      allow read: if resource.data.user_id == request.auth.uid;
+      // Write operations are only performed by server
+      allow write: if false;
+    }
+    
+    match /analytics/{docId} {
+      // Only admins can read aggregate analytics
+      // You may want to replace this with admin role check
+      allow read: if false;
+      // Write operations are only performed by server
+      allow write: if false;
+    }
+    
+    // Rules for usage-based pricing
+    match /usage_tracking/{docId} {
+      // Allow users to read their own usage data
+      // The document ID format is "{userId}_{month}"
+      allow read: if docId.split('_')[0] == request.auth.uid;
+      // Write operations are only performed by server
+      allow write: if false;
+    }
+    
+    match /usage_events/{eventId} {
+      // Allow users to read their own usage events
+      allow read: if resource.data.userId == request.auth.uid;
+      // Write operations are only performed by server
+      allow write: if false;
+    }
+    
+    match /usage_charges/{chargeId} {
+      // Allow users to read their own charge history
+      allow read: if resource.data.userId == request.auth.uid;
+      // Write operations are only performed by server
+      allow write: if false;
+    }
+    
+    // Optional: Add a users collection if you have one
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId;
+    }
   }
 }

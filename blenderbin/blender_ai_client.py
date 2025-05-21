@@ -7,8 +7,23 @@ import traceback
 import zlib
 import base64
 import math
-from bpy.props import StringProperty, BoolProperty, IntProperty, BoolVectorProperty, FloatVectorProperty
+import webbrowser
+import uuid
+import os
+import datetime
+from bpy.props import StringProperty, BoolProperty, IntProperty, BoolVectorProperty, FloatVectorProperty, EnumProperty
 from bpy.types import Operator, Panel
+
+# Firebase configuration
+FIREBASE_CONFIG = {
+  "apiKey": "AIzaSyDIuu33lWChgE_oTteuAuywPrJwBFiRavM",
+  "authDomain": "marv-studio-points-plugin.firebaseapp.com",
+  "databaseURL": "https://marv-studio-points-plugin-default-rtdb.firebaseio.com",
+  "projectId": "marv-studio-points-plugin",
+  "storageBucket": "marv-studio-points-plugin.firebasestorage.app",
+  "messagingSenderId": "441089628814",
+  "appId": "1:441089628814:web:4b4bc410399ae288bd47df"
+}
 
 bl_info = {
     "name": "Gizmo",
@@ -25,7 +40,30 @@ bl_info = {
 # Configuration
 API_URL = "http://localhost:3000/api/ai-server"  # Local development server
 # API_URL = "https://blenderbin.com/api/ai-server"  # Production server
+AUTH_URL = "https://blenderbin.com/signup"  # Authentication endpoint
 CHAT_HISTORY = []  # Store chat history for context
+
+# Authentication and limits
+AUTH_TOKEN_PATH = os.path.join(bpy.utils.user_resource('CONFIG', path='BlenderBin'), 'auth_token.json')
+USAGE_TRACKING_PATH = os.path.join(bpy.utils.user_resource('CONFIG', path='BlenderBin'), 'usage_data.json')
+FREE_TIER_LIMITS = {
+    "daily_queries": 20,
+    "cooldown_minutes": 0,
+    "max_history": 5
+}
+PRO_TIER_LIMITS = {
+    "daily_queries": 200,
+    "cooldown_minutes": 0,
+    "max_history": 50
+}
+BUSINESS_TIER_LIMITS = {
+    "daily_queries": 999999,  # Effectively unlimited
+    "cooldown_minutes": 0,
+    "max_history": 100
+}
+
+# Ensure the config directory exists
+os.makedirs(os.path.dirname(AUTH_TOKEN_PATH), exist_ok=True)
 
 class GizmoAIClient:
     def __init__(self, api_url=API_URL):
@@ -34,6 +72,185 @@ class GizmoAIClient:
         self.chat_history = []
         self.last_executed_code = ""  # Track the last code we executed to prevent duplicates
         self.is_executing = False     # Flag to prevent multiple simultaneous executions
+        self.auth_data = None         # Authentication data (token, user info)
+        self.session_id = str(uuid.uuid4())[:8]  # Unique session ID for auth flow
+        self.usage_data = {           # Track API usage
+            "queries_today": 0,
+            "last_query_time": None,
+            "last_date": None
+        }
+        
+        # Try to load existing auth data
+        self.load_auth_data()
+        
+        # Load usage data for freemium users
+        self.load_usage_data()
+        
+    def load_auth_data(self):
+        """Load authentication data from file"""
+        try:
+            if os.path.exists(AUTH_TOKEN_PATH):
+                with open(AUTH_TOKEN_PATH, 'r') as f:
+                    self.auth_data = json.load(f)
+                    print(f"Loaded auth data for user: {self.auth_data.get('email', 'Unknown')}")
+                    
+                    # Check if token is expired (tokens are valid for 1 hour)
+                    if 'expires_at' in self.auth_data:
+                        expires_at = datetime.datetime.fromisoformat(self.auth_data['expires_at'])
+                        if datetime.datetime.now() > expires_at:
+                            print("Auth token expired, clearing data")
+                            self.auth_data = None
+        except Exception as e:
+            print(f"Error loading auth data: {e}")
+            self.auth_data = None
+    
+    def save_auth_data(self):
+        """Save authentication data to file"""
+        try:
+            if self.auth_data:
+                with open(AUTH_TOKEN_PATH, 'w') as f:
+                    json.dump(self.auth_data, f)
+                    print(f"Saved auth data for user: {self.auth_data.get('email', 'Unknown')}")
+        except Exception as e:
+            print(f"Error saving auth data: {e}")
+    
+    def load_usage_data(self):
+        """Load usage data from local file for freemium users"""
+        try:
+            if os.path.exists(USAGE_TRACKING_PATH):
+                with open(USAGE_TRACKING_PATH, 'r') as f:
+                    saved_usage = json.load(f)
+                    
+                    # Check if it's a new day
+                    today = datetime.date.today().isoformat()
+                    if saved_usage.get("last_date") != today:
+                        # Reset for a new day
+                        self.usage_data = {
+                            "queries_today": 0,
+                            "last_query_time": None,
+                            "last_date": today
+                        }
+                        print("New day - reset usage data")
+                    else:
+                        self.usage_data = saved_usage
+                        print(f"Loaded usage data: {self.usage_data['queries_today']} queries today")
+        except Exception as e:
+            print(f"Error loading usage data: {e}")
+            
+            # Initialize usage data for today
+            today = datetime.date.today().isoformat()
+            self.usage_data = {
+                "queries_today": 0, 
+                "last_query_time": None,
+                "last_date": today
+            }
+    
+    def save_usage_data(self):
+        """Save usage data to local file for freemium users"""
+        try:
+            with open(USAGE_TRACKING_PATH, 'w') as f:
+                json.dump(self.usage_data, f)
+                print(f"Saved usage data: {self.usage_data['queries_today']} queries today")
+        except Exception as e:
+            print(f"Error saving usage data: {e}")
+    
+    def clear_auth_data(self):
+        """Clear authentication data"""
+        self.auth_data = None
+        if os.path.exists(AUTH_TOKEN_PATH):
+            try:
+                os.remove(AUTH_TOKEN_PATH)
+                print("Auth data cleared")
+            except Exception as e:
+                print(f"Error removing auth file: {e}")
+    
+    def is_authenticated(self):
+        """Check if the user is authenticated"""
+        return self.auth_data is not None and 'token' in self.auth_data
+    
+    def get_current_limits(self):
+        """Get the current usage limits based on authentication status and subscription tier"""
+        if not self.is_authenticated():
+            return FREE_TIER_LIMITS
+        
+        # Check if user has a subscription tier stored in auth data
+        subscription_tier = self.auth_data.get('subscription_tier', 'pro')
+        
+        if subscription_tier == 'business':
+            return BUSINESS_TIER_LIMITS
+        else:
+            return PRO_TIER_LIMITS
+    
+    def can_make_request(self):
+        """Check if the user can make a request based on their limits"""
+        limits = self.get_current_limits()
+        
+        # Reset daily counter if it's a new day
+        today = datetime.date.today().isoformat()
+        if self.usage_data["last_date"] != today:
+            self.usage_data["queries_today"] = 0
+            self.usage_data["last_date"] = today
+            # Save the reset usage data for freemium users
+            if not self.is_authenticated():
+                self.save_usage_data()
+        
+        # Check daily limit
+        if self.usage_data["queries_today"] >= limits["daily_queries"]:
+            # Check if user has usage-based pricing enabled
+            if self.is_authenticated() and self.auth_data.get('usage_based_pricing_enabled', False):
+                # User can make requests beyond the limit with usage-based pricing
+                return True, "Using usage-based pricing beyond plan limits."
+            else:
+                return False, f"Daily limit of {limits['daily_queries']} queries reached. Please upgrade for higher limits or enable usage-based pricing."
+        
+        # Check cooldown period
+        if limits["cooldown_minutes"] > 0 and self.usage_data["last_query_time"]:
+            last_time = datetime.datetime.fromisoformat(self.usage_data["last_query_time"])
+            elapsed_minutes = (datetime.datetime.now() - last_time).total_seconds() / 60
+            if elapsed_minutes < limits["cooldown_minutes"]:
+                remaining = limits["cooldown_minutes"] - elapsed_minutes
+                return False, f"Please wait {remaining:.1f} minutes between queries."
+        
+        return True, ""
+    
+    def update_usage_data(self):
+        """Update usage data after making a request"""
+        today = datetime.date.today().isoformat()
+        if self.usage_data["last_date"] != today:
+            self.usage_data["queries_today"] = 0
+            self.usage_data["last_date"] = today
+        
+        self.usage_data["queries_today"] += 1
+        self.usage_data["last_query_time"] = datetime.datetime.now().isoformat()
+        
+        # For freemium users, save usage data to local file
+        if not self.is_authenticated():
+            self.save_usage_data()
+    
+    def get_auth_url(self):
+        """Get the authentication URL with session ID"""
+        return f"{AUTH_URL}?session_id={self.session_id}"
+    
+    def set_auth_token(self, token, user_info):
+        """Set the authentication token and user info"""
+        # Calculate expiration time (1 hour from now)
+        expires_at = (datetime.datetime.now() + datetime.timedelta(hours=1)).isoformat()
+        
+        # Determine subscription tier
+        subscription_tier = user_info.get("subscription_tier", "pro")
+        
+        # Get usage-based pricing setting
+        usage_based_pricing_enabled = user_info.get("usage_based_pricing_enabled", False)
+        
+        self.auth_data = {
+            "token": token,
+            "email": user_info.get("email", "Unknown"),
+            "user_id": user_info.get("uid", ""),
+            "subscription_tier": subscription_tier,
+            "usage_based_pricing_enabled": usage_based_pricing_enabled,
+            "expires_at": expires_at
+        }
+        self.save_auth_data()
         
     def send_prompt(self, prompt, callback=None):
         """Send a prompt to the AI server and get a response"""
@@ -46,6 +263,24 @@ class GizmoAIClient:
     def _send_prompt_thread(self, prompt, callback=None):
         """Send a prompt to the AI server in a separate thread"""
         try:
+            # Check if user can make a request based on their tier limits
+            can_request, message = self.can_make_request()
+            if not can_request:
+                result = {
+                    "content": f"⚠️ {message} Please sign in to access premium features.",
+                    "type": "error"
+                }
+                if callback:
+                    bpy.app.timers.register(lambda: callback(result), first_interval=0.1)
+                return result
+            
+            # Check if we're using usage-based pricing (beyond plan limits)
+            using_usage_based_pricing = (
+                self.is_authenticated() and 
+                self.auth_data.get('usage_based_pricing_enabled', False) and 
+                self.usage_data["queries_today"] >= self.get_current_limits()["daily_queries"]
+            )
+            
             # Add user prompt to history
             self.chat_history.append({"role": "user", "content": prompt})
             
@@ -67,6 +302,39 @@ class GizmoAIClient:
                 "scene_info": scene_info,
                 "model": selected_model
             }
+            
+            # Add authentication token if authenticated
+            if self.is_authenticated():
+                # Add additional analytics data for authenticated users
+                payload["auth"] = {
+                    "token": self.auth_data["token"],
+                    "user_id": self.auth_data["user_id"],
+                    "analytics": {
+                        "client_version": bl_info["version"],
+                        "blender_version": ".".join(map(str, bpy.app.version)),
+                        "platform": bpy.app.platform,
+                        "queries_today": self.usage_data["queries_today"],
+                        "session_id": self.session_id,
+                        "timestamp": datetime.datetime.now().isoformat()
+                    }
+                }
+
+                # Add usage-based pricing info if relevant
+                if using_usage_based_pricing:
+                    payload["auth"]["usage_based_pricing"] = {
+                        "enabled": True,
+                        "beyond_plan_limits": True,
+                        "plan_limit": self.get_current_limits()["daily_queries"]
+                    }
+
+                    # Enhanced metrics about user's scene complexity
+                    if scene_info and "total_objects" in scene_info:
+                        payload["auth"]["analytics"]["scene_complexity"] = {
+                            "object_count": scene_info.get("total_objects", 0),
+                            "collection_count": len(scene_info.get("collections", [])),
+                            "material_count": len(scene_info.get("materials", [])),
+                            "has_active_object": scene_info.get("active_object_details") is not None
+                        }
             
             # Compress the payload
             compressed_payload = self._compress_payload(payload)
@@ -94,6 +362,19 @@ class GizmoAIClient:
                 if "content" in data:
                     self.chat_history.append({"role": "assistant", "content": data["content"]})
                 
+                # If using usage-based pricing, check for token usage
+                if using_usage_based_pricing and self.is_authenticated():
+                    try:
+                        # Get the token count from the response
+                        token_count = data.get("token_usage", {}).get("total_tokens", 0)
+                        
+                        # If token count is present, report it for usage-based pricing
+                        if token_count > 0:
+                            # Report token usage (async in a separate thread)
+                            self._report_token_usage(selected_model, token_count)
+                    except Exception as e:
+                        print(f"Error processing token usage data: {e}")
+                
                 # Execute code if the response type is 'code'
                 if data.get("type") == "code":
                     # IMPORTANT: Don't execute code in a thread - Blender's Python API isn't fully thread-safe
@@ -107,6 +388,13 @@ class GizmoAIClient:
                     
                     # Register as a one-shot timer
                     bpy.app.timers.register(execute_once, first_interval=0.1)
+                
+                # Update usage tracking
+                self.update_usage_data()
+                
+                # Handle authentication token refresh if provided
+                if "auth" in data and "token" in data["auth"]:
+                    self.set_auth_token(data["auth"]["token"], data["auth"].get("user", {}))
                 
                 result = data
             else:
@@ -749,6 +1037,56 @@ if hasattr(bpy, 'ops'):
             # Return original payload if decompression fails
             return compressed_payload
 
+    def _report_token_usage(self, model: str, token_count: int):
+        """Report token usage for usage-based pricing"""
+        if not self.is_authenticated() or not self.auth_data.get('usage_based_pricing_enabled', False):
+            return
+            
+        try:
+            # Create a thread to report token usage
+            def report_thread():
+                try:
+                    # Create the payload
+                    payload = {
+                        "model": "token-based-claude" if "claude" in model.lower() else model,
+                        "tokenCount": token_count,
+                        "requestCount": 0  # This is a token-based request, not request-based
+                    }
+                    
+                    # Add auth header
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {self.auth_data['token']}"
+                    }
+                    
+                    # Send the request
+                    response = self.session.post(
+                        "https://blenderbin.com/api/usage-tracking",
+                        json=payload,
+                        headers=headers,
+                        timeout=30
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        print(f"Token usage reported successfully: {token_count} tokens")
+                        
+                        # If we were charged, show a message to the user
+                        if data.get("charged", False):
+                            charged_amount = data.get("chargeAmount", 0)
+                            print(f"⚠️ You were charged ${charged_amount:.2f} for usage-based pricing")
+                    else:
+                        print(f"Error reporting token usage: Status {response.status_code}")
+                except Exception as e:
+                    print(f"Error in report_token_usage thread: {e}")
+            
+            # Start the thread
+            thread = threading.Thread(target=report_thread)
+            thread.daemon = True
+            thread.start()
+        except Exception as e:
+            print(f"Error starting report_token_usage thread: {e}")
+
 
 # Global client instance
 ai_client = GizmoAIClient()
@@ -815,11 +1153,50 @@ class GIZMO_PT_ai_panel(Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        global ai_client
+        
+        # Authentication status
+        box = layout.box()
+        
+        if ai_client.is_authenticated():
+            # Show logged-in user info
+            row = box.row()
+            subscription_tier = ai_client.auth_data.get('subscription_tier', 'pro')
+            tier_icon = 'FUND' if subscription_tier == 'business' else 'COLLECTION_COLOR_04'
+            row.label(text=f"{subscription_tier.capitalize()} User: {ai_client.auth_data.get('email', 'Unknown')}", icon=tier_icon)
+            row.operator("gizmo.logout", text="", icon='KEYFRAME_HLT')
+            
+            # Show usage info with button to check details
+            limits = ai_client.get_current_limits()
+            usage = ai_client.usage_data
+            remaining = max(0, limits["daily_queries"] - usage.get("queries_today", 0))
+            
+            usage_row = box.row()
+            usage_row.label(text=f"Queries: {usage.get('queries_today', 0)}/{limits['daily_queries']}")
+            usage_row.operator("gizmo.check_usage", text="", icon='INFO')
+            
+            # Show usage-based pricing status if enabled
+            if ai_client.auth_data.get('usage_based_pricing_enabled', False):
+                usage_pricing_row = box.row()
+                
+                # Check if we're over the limit
+                if usage.get('queries_today', 0) >= limits["daily_queries"]:
+                    usage_pricing_row.label(text="Using usage-based pricing", icon='FUND')
+                else:
+                    usage_pricing_row.label(text="Usage-based pricing enabled", icon='CHECKMARK')
+        else:
+            # Login prompt
+            row = box.row()
+            row.label(text="Free Tier", icon='SOLO_OFF')
+            row.operator("gizmo.login", text="Sign In", icon='KEYFRAME')
+            row.operator("gizmo.check_usage", text="", icon='INFO')
+            
+            box.label(text=f"Limited to {FREE_TIER_LIMITS['daily_queries']} queries/day")
         
         # Model selection dropdown
-        box = layout.box()
-        box.label(text="Model Selection:")
-        box.prop(scene, "gizmo_selected_model", text="")
+        model_box = layout.box()
+        model_box.label(text="Model Selection:")
+        model_box.prop(scene, "gizmo_selected_model", text="")
         
         # Direct input field and submission
         layout.label(text="Ask Gizmo:")
@@ -906,6 +1283,142 @@ class GIZMO_OT_clear_history(Operator):
         return {'FINISHED'}
 
 
+# Authentication operators
+class GIZMO_OT_login(Operator):
+    bl_idname = "gizmo.login"
+    bl_label = "Sign In"
+    bl_description = "Sign in to access premium features"
+    
+    def execute(self, context):
+        global ai_client
+        auth_url = ai_client.get_auth_url()
+        
+        # Open browser to the login page with session ID
+        webbrowser.open(auth_url)
+        
+        # Create a timer to poll for auth token from server
+        bpy.app.timers.register(self.check_auth_status, first_interval=2.0)
+        
+        self.report({'INFO'}, "Opening browser for authentication...")
+        return {'FINISHED'}
+    
+    def check_auth_status(self):
+        """Poll the server to check if authentication was completed"""
+        global ai_client
+        
+        try:
+            # Check auth status endpoint
+            response = requests.get(
+                f"https://blenderbin.com/api/auth/callback?session_id={ai_client.session_id}",
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("authenticated"):
+                    # User has authenticated, save the token
+                    ai_client.set_auth_token(
+                        data.get("token", ""),
+                        data.get("user", {})
+                    )
+                    
+                    print(f"User authenticated: {data.get('user', {}).get('email', 'Unknown')}")
+                    
+                    # Force UI redraw
+                    for area in bpy.context.screen.areas:
+                        if area.type == 'VIEW_3D':
+                            area.tag_redraw()
+                    
+                    # Don't check anymore
+                    return None
+        except Exception as e:
+            print(f"Error checking auth status: {e}")
+        
+        # Keep checking every 2 seconds for 60 seconds (30 iterations)
+        # The timer will stop after self.check_attempts reaches 30
+        if not hasattr(self, "check_attempts"):
+            self.check_attempts = 0
+        
+        self.check_attempts += 1
+        if self.check_attempts >= 30:
+            print("Authentication timeout, stopping checks")
+            return None
+        
+        return 2.0  # Check again in 2 seconds
+
+
+class GIZMO_OT_logout(Operator):
+    bl_idname = "gizmo.logout"
+    bl_label = "Sign Out"
+    bl_description = "Sign out from your account"
+    
+    def execute(self, context):
+        global ai_client
+        ai_client.clear_auth_data()
+        
+        self.report({'INFO'}, "Signed out successfully")
+        return {'FINISHED'}
+
+
+class GIZMO_OT_check_usage(Operator):
+    bl_idname = "gizmo.check_usage"
+    bl_label = "Check Usage"
+    bl_description = "Check your API usage and limits"
+    
+    def execute(self, context):
+        global ai_client
+        
+        limits = ai_client.get_current_limits()
+        usage = ai_client.usage_data
+        
+        # Calculate remaining queries
+        remaining = max(0, limits["daily_queries"] - usage.get("queries_today", 0))
+        
+        # Get usage-based pricing status
+        usage_based_pricing_enabled = ai_client.auth_data.get('usage_based_pricing_enabled', False) if ai_client.is_authenticated() else False
+        using_usage_based_pricing = usage_based_pricing_enabled and usage.get('queries_today', 0) >= limits["daily_queries"]
+        
+        # Show a popup with usage info
+        def draw_func(self, context):
+            layout = self.layout
+            
+            if ai_client.is_authenticated():
+                layout.label(text=f"Logged in as: {ai_client.auth_data.get('email', 'Unknown')}")
+                subscription_tier = ai_client.auth_data.get('subscription_tier', 'pro')
+                tier_icon = 'FUND' if subscription_tier == 'business' else 'COLLECTION_COLOR_04'
+                layout.label(text=f"Account type: {subscription_tier.capitalize()}", icon=tier_icon)
+                
+                # Show usage-based pricing status
+                if usage_based_pricing_enabled:
+                    if using_usage_based_pricing:
+                        layout.label(text="Usage-based pricing: Active", icon='FUND')
+                    else:
+                        layout.label(text="Usage-based pricing: Enabled", icon='CHECKMARK')
+                else:
+                    layout.label(text="Usage-based pricing: Disabled", icon='X')
+            else:
+                layout.label(text="Account type: Free", icon='SOLO_OFF')
+                layout.operator(GIZMO_OT_login.bl_idname)
+            
+            layout.separator()
+            row = layout.row()
+            row.label(text=f"Queries used today: {usage.get('queries_today', 0)}/{limits['daily_queries']}")
+            
+            if using_usage_based_pricing:
+                layout.label(text=f"Using usage-based pricing beyond plan limit", icon='FUND')
+                layout.label(text=f"You'll be charged only for queries beyond {limits['daily_queries']}/day")
+            else:
+                layout.label(text=f"Remaining queries: {remaining}")
+            
+            # Only show cooldown info if there is one
+            if limits["cooldown_minutes"] > 0:
+                layout.label(text=f"Cooldown between queries: {limits['cooldown_minutes']} minutes")
+        
+        context.window_manager.popup_menu(draw_func, title="API Usage", icon='INFO')
+        
+        return {'FINISHED'}
+
+
 # Custom input field operator with Enter key handling
 class GIZMO_OT_input_field(Operator):
     bl_idname = "gizmo.input_field"
@@ -962,6 +1475,9 @@ def register():
     bpy.utils.register_class(GIZMO_OT_execute_code)
     bpy.utils.register_class(GIZMO_OT_clear_history)
     bpy.utils.register_class(GIZMO_OT_input_field)
+    bpy.utils.register_class(GIZMO_OT_login)
+    bpy.utils.register_class(GIZMO_OT_logout)
+    bpy.utils.register_class(GIZMO_OT_check_usage)
     bpy.utils.register_class(GIZMO_PT_ai_panel)
 
 
@@ -971,6 +1487,9 @@ def unregister():
     bpy.utils.unregister_class(GIZMO_OT_clear_history)
     bpy.utils.unregister_class(GIZMO_OT_input_field)
     bpy.utils.unregister_class(GIZMO_OT_process_input)
+    bpy.utils.unregister_class(GIZMO_OT_login)
+    bpy.utils.unregister_class(GIZMO_OT_logout)
+    bpy.utils.unregister_class(GIZMO_OT_check_usage)
     
     del bpy.types.Scene.gizmo_input
     del bpy.types.Scene.gizmo_ai_result
