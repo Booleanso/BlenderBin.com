@@ -40,7 +40,7 @@ bl_info = {
 # Configuration
 API_URL = "http://localhost:3000/api/ai-server"  # Local development server
 # API_URL = "https://blenderbin.com/api/ai-server"  # Production server
-AUTH_URL = "https://blenderbin.com/signup"  # Authentication endpoint
+AUTH_URL = "http://localhost:3000/signup"  # Authentication endpoint
 CHAT_HISTORY = []  # Store chat history for context
 
 # Authentication and limits
@@ -74,6 +74,9 @@ class GizmoAIClient:
         self.is_executing = False     # Flag to prevent multiple simultaneous executions
         self.auth_data = None         # Authentication data (token, user info)
         self.session_id = str(uuid.uuid4())[:8]  # Unique session ID for auth flow
+        self.is_checking_auth = False  # Flag to prevent multiple auth checks
+        self.auth_check_in_progress = False # Flag to track if auth check is in progress
+        self.last_auth_check_time = None  # Track when we last checked auth
         self.usage_data = {           # Track API usage
             "queries_today": 0,
             "last_query_time": None,
@@ -231,6 +234,14 @@ class GizmoAIClient:
         """Get the authentication URL with session ID"""
         return f"{AUTH_URL}?session_id={self.session_id}"
     
+    def get_auth_callback_url(self):
+        """Get the authentication callback URL based on the current AUTH_URL domain"""
+        # Extract the domain and protocol from AUTH_URL
+        if AUTH_URL.startswith("http://localhost"):
+            return f"http://localhost:3000/api/auth/callback?session_id={self.session_id}"
+        else:
+            return f"https://blenderbin.com/api/auth/callback?session_id={self.session_id}"
+    
     def set_auth_token(self, token, user_info):
         """Set the authentication token and user info"""
         # Calculate expiration time (1 hour from now)
@@ -248,9 +259,19 @@ class GizmoAIClient:
             "user_id": user_info.get("uid", ""),
             "subscription_tier": subscription_tier,
             "usage_based_pricing_enabled": usage_based_pricing_enabled,
-            "expires_at": expires_at
+            "expires_at": expires_at,
+            "authenticated_at": datetime.datetime.now().isoformat(),
+            "session_id": self.session_id
         }
         self.save_auth_data()
+        
+        # Force refresh UI after authentication
+        try:
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    area.tag_redraw()
+        except Exception as e:
+            print(f"Error refreshing UI after authentication: {e}")
         
     def send_prompt(self, prompt, callback=None):
         """Send a prompt to the AI server and get a response"""
@@ -1155,6 +1176,24 @@ class GIZMO_PT_ai_panel(Panel):
         scene = context.scene
         global ai_client
         
+        # Refresh the authentication status before drawing the panel
+        # This ensures we always have the latest state
+        if not ai_client.auth_check_in_progress:
+            # Only try to reload auth data if we're not in the middle of checking auth
+            if ai_client.auth_data and not ai_client.is_authenticated():
+                # Force reload auth data from file
+                ai_client.load_auth_data()
+            
+            # Check if token is expired and clear it if necessary
+            if ai_client.is_authenticated() and 'expires_at' in ai_client.auth_data:
+                try:
+                    expires_at = datetime.datetime.fromisoformat(ai_client.auth_data['expires_at'])
+                    if datetime.datetime.now() > expires_at:
+                        print("Auth token expired, clearing data")
+                        ai_client.clear_auth_data()
+                except Exception as e:
+                    print(f"Error checking token expiration: {e}")
+        
         # Authentication status
         box = layout.box()
         
@@ -1184,14 +1223,31 @@ class GIZMO_PT_ai_panel(Panel):
                     usage_pricing_row.label(text="Using usage-based pricing", icon='FUND')
                 else:
                     usage_pricing_row.label(text="Usage-based pricing enabled", icon='CHECKMARK')
+                    
+            # Debug info 
+            if scene.get("gizmo_show_debug", False):
+                debug_box = box.box()
+                debug_box.label(text="Debug Info:")
+                debug_box.label(text=f"Session ID: {ai_client.session_id}")
+                if 'authenticated_at' in ai_client.auth_data:
+                    auth_time = datetime.datetime.fromisoformat(ai_client.auth_data['authenticated_at'])
+                    debug_box.label(text=f"Auth time: {auth_time.strftime('%H:%M:%S')}")
+                if 'expires_at' in ai_client.auth_data:
+                    exp_time = datetime.datetime.fromisoformat(ai_client.auth_data['expires_at'])
+                    debug_box.label(text=f"Expires: {exp_time.strftime('%H:%M:%S')}")
         else:
-            # Login prompt
-            row = box.row()
-            row.label(text="Free Tier", icon='SOLO_OFF')
-            row.operator("gizmo.login", text="Sign In", icon='KEYFRAME')
-            row.operator("gizmo.check_usage", text="", icon='INFO')
-            
-            box.label(text=f"Limited to {FREE_TIER_LIMITS['daily_queries']} queries/day")
+            # Check if auth is in progress
+            if ai_client.auth_check_in_progress:
+                row = box.row()
+                row.label(text="Authentication in progress...", icon='SORTTIME')
+            else:
+                # Login prompt
+                row = box.row()
+                row.label(text="Free Tier", icon='SOLO_OFF')
+                row.operator("gizmo.login", text="Sign In", icon='KEYFRAME')
+                row.operator("gizmo.check_usage", text="", icon='INFO')
+                
+                box.label(text=f"Limited to {FREE_TIER_LIMITS['daily_queries']} queries/day")
         
         # Model selection dropdown
         model_box = layout.box()
@@ -1293,6 +1349,14 @@ class GIZMO_OT_login(Operator):
         global ai_client
         auth_url = ai_client.get_auth_url()
         
+        # Reset any previous auth check state
+        if hasattr(self, "check_attempts"):
+            del self.check_attempts
+        
+        # Mark that we're starting a new auth check
+        ai_client.auth_check_in_progress = True
+        ai_client.last_auth_check_time = datetime.datetime.now()
+        
         # Open browser to the login page with session ID
         webbrowser.open(auth_url)
         
@@ -1307,14 +1371,21 @@ class GIZMO_OT_login(Operator):
         global ai_client
         
         try:
+            # Get the correct callback URL based on whether we're in dev or prod
+            callback_url = ai_client.get_auth_callback_url()
+            
+            print(f"Checking auth status at: {callback_url}")
+            
             # Check auth status endpoint
             response = requests.get(
-                f"https://blenderbin.com/api/auth/callback?session_id={ai_client.session_id}",
+                callback_url,
                 timeout=5
             )
             
             if response.status_code == 200:
                 data = response.json()
+                print(f"Auth status response: {data}")
+                
                 if data.get("authenticated"):
                     # User has authenticated, save the token
                     ai_client.set_auth_token(
@@ -1324,10 +1395,20 @@ class GIZMO_OT_login(Operator):
                     
                     print(f"User authenticated: {data.get('user', {}).get('email', 'Unknown')}")
                     
-                    # Force UI redraw
-                    for area in bpy.context.screen.areas:
-                        if area.type == 'VIEW_3D':
+                    # Force UI redraw in ALL areas to ensure panel is refreshed
+                    for window in bpy.context.window_manager.windows:
+                        for area in window.screen.areas:
                             area.tag_redraw()
+                    
+                    # Show a notification to the user
+                    def show_login_success():
+                        self.report({'INFO'}, f"Successfully signed in as {data.get('user', {}).get('email', 'Unknown')}")
+                        return None
+                    
+                    bpy.app.timers.register(show_login_success, first_interval=0.1)
+                    
+                    # Reset auth check state
+                    ai_client.auth_check_in_progress = False
                     
                     # Don't check anymore
                     return None
@@ -1342,6 +1423,18 @@ class GIZMO_OT_login(Operator):
         self.check_attempts += 1
         if self.check_attempts >= 30:
             print("Authentication timeout, stopping checks")
+            # Show error message to user
+            def show_timeout_message():
+                for window in bpy.context.window_manager.windows:
+                    bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+                self.report({'ERROR'}, "Authentication timed out. Please try again.")
+                return None
+            
+            bpy.app.timers.register(show_timeout_message, first_interval=0.1)
+            
+            # Reset auth check state
+            ai_client.auth_check_in_progress = False
+            
             return None
         
         return 2.0  # Check again in 2 seconds
@@ -1471,6 +1564,13 @@ def register():
     bpy.types.Scene.gizmo_ai_result = StringProperty(default="")
     bpy.types.Scene.gizmo_ai_type = StringProperty(default="")
     
+    # Add debug flag
+    bpy.types.Scene.gizmo_show_debug = bpy.props.BoolProperty(
+        name="Show Debug Info",
+        description="Show debugging information in the UI",
+        default=False
+    )
+    
     bpy.utils.register_class(GIZMO_OT_process_input)
     bpy.utils.register_class(GIZMO_OT_execute_code)
     bpy.utils.register_class(GIZMO_OT_clear_history)
@@ -1479,9 +1579,17 @@ def register():
     bpy.utils.register_class(GIZMO_OT_logout)
     bpy.utils.register_class(GIZMO_OT_check_usage)
     bpy.utils.register_class(GIZMO_PT_ai_panel)
+    
+    # Start the periodic auth status check
+    if not bpy.app.timers.is_registered(check_auth_status_periodic):
+        bpy.app.timers.register(check_auth_status_periodic, persistent=True)
 
 
 def unregister():
+    # Remove the timer if registered
+    if bpy.app.timers.is_registered(check_auth_status_periodic):
+        bpy.app.timers.unregister(check_auth_status_periodic)
+        
     bpy.utils.unregister_class(GIZMO_PT_ai_panel)
     bpy.utils.unregister_class(GIZMO_OT_execute_code)
     bpy.utils.unregister_class(GIZMO_OT_clear_history)
@@ -1494,7 +1602,72 @@ def unregister():
     del bpy.types.Scene.gizmo_input
     del bpy.types.Scene.gizmo_ai_result
     del bpy.types.Scene.gizmo_ai_type
-    del bpy.types.Scene.gizmo_selected_model
+    del bpy.types.Scene.gizmo_show_debug  # Remove debug flag
+
+
+# Periodic authentication status check (runs every 15 seconds)
+def check_auth_status_periodic():
+    """Periodically check auth status and refresh UI if needed"""
+    global ai_client
+    
+    try:
+        # Skip if we're currently in the middle of a login flow
+        if ai_client.auth_check_in_progress:
+            return 15.0
+            
+        # If previously not authenticated but now we have auth data in the file
+        need_refresh = False
+        
+        # Check if we should reload auth data from file
+        if not ai_client.is_authenticated():
+            old_auth_state = ai_client.is_authenticated()
+            # Try to load auth data
+            ai_client.load_auth_data()
+            
+            # If auth state changed, we need to refresh
+            if old_auth_state != ai_client.is_authenticated():
+                need_refresh = True
+                print("Auth status changed from file, refreshing UI")
+        
+        # Also check if authenticated but token is expired
+        elif ai_client.is_authenticated():
+            # Check if token is expired
+            if 'expires_at' in ai_client.auth_data:
+                expires_at = datetime.datetime.fromisoformat(ai_client.auth_data['expires_at'])
+                if datetime.datetime.now() > expires_at:
+                    print("Auth token expired, clearing data")
+                    ai_client.auth_data = None
+                    need_refresh = True
+            
+            # If user logged in through a different Blender instance, refresh the token
+            elif ai_client.last_auth_check_time is None or \
+                 (datetime.datetime.now() - ai_client.last_auth_check_time).total_seconds() > 300:  # Every 5 minutes
+                try:
+                    # Get the token auth state from server
+                    if ai_client.auth_data and 'token' in ai_client.auth_data:
+                        # Optional: Verify token with server
+                        pass
+                except Exception as e:
+                    print(f"Error checking token with server: {e}")
+                
+                ai_client.last_auth_check_time = datetime.datetime.now()
+        
+        # If auth status changed, refresh UI
+        if need_refresh:
+            # Force UI redraw in ALL areas
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    area.tag_redraw()
+            
+            # Update auth state in the panel
+            if hasattr(bpy.context, "area") and bpy.context.area:
+                bpy.context.area.tag_redraw()
+    
+    except Exception as e:
+        print(f"Error in periodic auth check: {e}")
+    
+    # Run again in 15 seconds (more frequent checks)
+    return 15.0
 
 
 if __name__ == "__main__":
