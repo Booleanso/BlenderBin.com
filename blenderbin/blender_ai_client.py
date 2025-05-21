@@ -11,8 +11,10 @@ import webbrowser
 import uuid
 import os
 import datetime
+import sys
 from bpy.props import StringProperty, BoolProperty, IntProperty, BoolVectorProperty, FloatVectorProperty, EnumProperty
 from bpy.types import Operator, Panel
+from urllib.parse import urlparse
 
 # Firebase configuration
 FIREBASE_CONFIG = {
@@ -77,6 +79,7 @@ class GizmoAIClient:
         self.is_checking_auth = False  # Flag to prevent multiple auth checks
         self.auth_check_in_progress = False # Flag to track if auth check is in progress
         self.last_auth_check_time = None  # Track when we last checked auth
+        self.check_attempts = 0  # Counter for auth check attempts
         self.usage_data = {           # Track API usage
             "queries_today": 0,
             "last_query_time": None,
@@ -237,10 +240,13 @@ class GizmoAIClient:
     def get_auth_callback_url(self):
         """Get the authentication callback URL based on the current AUTH_URL domain"""
         # Extract the domain and protocol from AUTH_URL
-        if AUTH_URL.startswith("http://localhost"):
+        if "localhost" in AUTH_URL:
             return f"http://localhost:3000/api/auth/callback?session_id={self.session_id}"
         else:
-            return f"https://blenderbin.com/api/auth/callback?session_id={self.session_id}"
+            # Extract domain from AUTH_URL
+            parsed_url = urlparse(AUTH_URL)
+            domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            return f"{domain}/api/auth/callback?session_id={self.session_id}"
     
     def set_auth_token(self, token, user_info):
         """Set the authentication token and user info"""
@@ -333,7 +339,7 @@ class GizmoAIClient:
                     "analytics": {
                         "client_version": bl_info["version"],
                         "blender_version": ".".join(map(str, bpy.app.version)),
-                        "platform": bpy.app.platform,
+                        "platform": getattr(bpy.app, "platform", sys.platform),
                         "queries_today": self.usage_data["queries_today"],
                         "session_id": self.session_id,
                         "timestamp": datetime.datetime.now().isoformat()
@@ -407,8 +413,16 @@ class GizmoAIClient:
                         self.execute_code(code_content)
                         return None  # Returning None or False prevents the timer from repeating
                     
-                    # Register as a one-shot timer
-                    bpy.app.timers.register(execute_once, first_interval=0.1)
+                    # Register as a one-shot timer - check if timers are available
+                    if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+                        bpy.app.timers.register(execute_once, first_interval=0.1)
+                    else:
+                        # Fall back to direct execution if timers aren't available
+                        try:
+                            self.execute_code(code_content)
+                        except Exception as exec_error:
+                            print(f"Error executing code directly: {exec_error}")
+                            traceback.print_exc()
                 
                 # Update usage tracking
                 self.update_usage_data()
@@ -427,13 +441,28 @@ class GizmoAIClient:
             error_message = f"Error sending prompt: {str(e)}"
             print(error_message)
             traceback.print_exc()
-            result = {"content": error_message, "type": "error"}
+            
+            # Provide a more user-friendly error message for common errors
+            user_message = error_message
+            if "platform" in str(e) or "attribute" in str(e):
+                user_message = "Error: Unable to access required Blender attributes. This might be due to compatibility issues with your Blender version."
+            elif "connection" in str(e).lower():
+                user_message = "Error: Unable to connect to the AI server. Please check your internet connection."
+            elif "timeout" in str(e).lower():
+                user_message = "Error: The request timed out. The server might be busy or experiencing issues."
+            
+            result = {"content": user_message, "type": "error"}
         
         # Call the callback with the result if provided
         if callback:
             try:
                 # Use bpy.app.timers to run callback in the main thread
-                bpy.app.timers.register(lambda: callback(result), first_interval=0.1)
+                # First check if timers are available in this Blender version
+                if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+                    bpy.app.timers.register(lambda: callback(result), first_interval=0.1)
+                else:
+                    # Fall back to direct callback if timers aren't available
+                    callback(result)
             except Exception as e:
                 print(f"Error calling callback: {str(e)}")
         
@@ -577,7 +606,8 @@ if hasattr(bpy, 'ops'):
             print(f"Error collecting scene info: {e}")
             return {
                 "error": f"Failed to collect scene info: {str(e)}",
-                "blender_version": ".".join(map(str, bpy.app.version)) if hasattr(bpy, "app") else "Unknown"
+                "blender_version": ".".join(map(str, bpy.app.version)) if hasattr(bpy, "app") and hasattr(bpy.app, "version") else "Unknown",
+                "platform": getattr(bpy.app, "platform", sys.platform) if hasattr(bpy, "app") else sys.platform
             }
         
         # Get active object details - with safe access
@@ -1108,6 +1138,160 @@ if hasattr(bpy, 'ops'):
         except Exception as e:
             print(f"Error starting report_token_usage thread: {e}")
 
+    def check_auth_status(self):
+        """Poll the server to check if authentication was completed"""
+        try:
+            # Get the correct callback URL based on whether we're in dev or prod
+            callback_url = self.get_auth_callback_url()
+            
+            print(f"Checking auth status at: {callback_url}")
+            
+            # Check auth status endpoint
+            response = requests.get(
+                callback_url,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"Auth status response: {data}")
+                
+                if data.get("authenticated"):
+                    # User has authenticated, save the token
+                    self.set_auth_token(
+                        data.get("token", ""),
+                        data.get("user", {})
+                    )
+                    
+                    print(f"User authenticated: {data.get('user', {}).get('email', 'Unknown')}")
+                    
+                    # Force UI redraw in ALL areas to ensure panel is refreshed
+                    for window in bpy.context.window_manager.windows:
+                        for area in window.screen.areas:
+                            area.tag_redraw()
+                    
+                    # Show a notification to the user
+                    def show_login_success():
+                        # Show a message in Blender's info area
+                        message = f"Successfully signed in as {data.get('user', {}).get('email', 'Unknown')}"
+                        print(message)
+                        
+                        # Use the appropriate functions to show a message
+                        if hasattr(bpy.ops, "ui") and hasattr(bpy.ops.ui, "reports_to_textblock"):
+                            # Log the message to reports
+                            bpy.ops.ui.reports_to_textblock()
+                        
+                        # Force UI refresh
+                        for window in bpy.context.window_manager.windows:
+                            for area in window.screen.areas:
+                                area.tag_redraw()
+                    
+                        return None
+                    
+                    # Safely register timer
+                    if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+                        bpy.app.timers.register(show_login_success, first_interval=0.1)
+                    else:
+                        # Fall back to direct call if timers aren't available
+                        show_login_success()
+                    
+                    # Reset auth check state
+                    self.auth_check_in_progress = False
+                    self.check_attempts = 0
+                    
+                    # Don't check anymore
+                    return None
+                else:
+                    # Authentication was not successful
+                    print(f"Authentication failed. Response: {data}")
+                    
+                    # If we've been checking for a while, show a specific message
+                    if self.check_attempts > 15:  # After about 30 seconds
+                        def show_auth_failed():
+                            message = "Authentication failed. Please try again or check your account status."
+                            print(message)
+                            
+                            # Force UI refresh
+                            for window in bpy.context.window_manager.windows:
+                                for area in window.screen.areas:
+                                    area.tag_redraw()
+                        
+                            return None
+                        
+                        # Safely register timer
+                        if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+                            bpy.app.timers.register(show_auth_failed, first_interval=0.1)
+                        else:
+                            # Fall back to direct call if timers aren't available
+                            show_auth_failed()
+                        
+                        # Reset auth check state
+                        self.auth_check_in_progress = False
+                        self.check_attempts = 0
+                        
+                        return None
+            elif response.status_code in (401, 403):
+                # Authentication error
+                print(f"Authentication error: Server returned {response.status_code}")
+                
+                def show_auth_error():
+                    message = "Server authentication error. Please try again later."
+                    print(message)
+                    
+                    # Force UI refresh
+                    for window in bpy.context.window_manager.windows:
+                        for area in window.screen.areas:
+                            area.tag_redraw()
+                    
+                    return None
+                
+                # Safely register timer
+                if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+                    bpy.app.timers.register(show_auth_error, first_interval=0.1)
+                else:
+                    # Fall back to direct call if timers aren't available
+                    show_auth_error()
+                
+                # Reset auth check state
+                self.auth_check_in_progress = False
+                self.check_attempts = 0
+                
+                return None
+        except Exception as e:
+            print(f"Error checking auth status: {e}")
+        
+        # Keep checking every 2 seconds for 60 seconds (30 iterations)
+        self.check_attempts += 1
+        if self.check_attempts >= 30:
+            print("Authentication timeout, stopping checks")
+            # Show error message to user
+            def show_timeout_message():
+                # Show a message in Blender's info area
+                message = "Authentication timed out. Please try again."
+                print(message)
+                
+                # Force UI refresh
+                for window in bpy.context.window_manager.windows:
+                    for area in window.screen.areas:
+                        area.tag_redraw()
+                
+                return None
+            
+            # Safely register timer
+            if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+                bpy.app.timers.register(show_timeout_message, first_interval=0.1)
+            else:
+                # Fall back to direct call if timers aren't available
+                show_timeout_message()
+            
+            # Reset auth check state
+            self.auth_check_in_progress = False
+            self.check_attempts = 0
+            
+            return None
+        
+        return 2.0  # Check again in 2 seconds
+
 
 # Global client instance
 ai_client = GizmoAIClient()
@@ -1315,7 +1499,16 @@ class GIZMO_OT_execute_code(Operator):
             return None  # Ensures timer won't repeat
         
         # Schedule execution on the main thread
-        bpy.app.timers.register(execute_once, first_interval=0.1)
+        if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+            bpy.app.timers.register(execute_once, first_interval=0.1)
+        else:
+            # Fall back to direct execution if timers aren't available
+            global ai_client
+            success = ai_client.execute_code(code_to_execute)
+            if success:
+                self.report({'INFO'}, "Code executed successfully")
+            else:
+                self.report({'ERROR'}, "Error executing code")
         
         return {'FINISHED'}
 
@@ -1350,8 +1543,7 @@ class GIZMO_OT_login(Operator):
         auth_url = ai_client.get_auth_url()
         
         # Reset any previous auth check state
-        if hasattr(self, "check_attempts"):
-            del self.check_attempts
+        ai_client.check_attempts = 0
         
         # Mark that we're starting a new auth check
         ai_client.auth_check_in_progress = True
@@ -1361,83 +1553,14 @@ class GIZMO_OT_login(Operator):
         webbrowser.open(auth_url)
         
         # Create a timer to poll for auth token from server
-        bpy.app.timers.register(self.check_auth_status, first_interval=2.0)
+        if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+            bpy.app.timers.register(ai_client.check_auth_status, first_interval=2.0)
+        else:
+            # If timers aren't available, we can't do polling, so show a message
+            self.report({'INFO'}, "Authentication initiated. Please check the web browser and restart Blender after signing in.")
         
         self.report({'INFO'}, "Opening browser for authentication...")
         return {'FINISHED'}
-    
-    def check_auth_status(self):
-        """Poll the server to check if authentication was completed"""
-        global ai_client
-        
-        try:
-            # Get the correct callback URL based on whether we're in dev or prod
-            callback_url = ai_client.get_auth_callback_url()
-            
-            print(f"Checking auth status at: {callback_url}")
-            
-            # Check auth status endpoint
-            response = requests.get(
-                callback_url,
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                print(f"Auth status response: {data}")
-                
-                if data.get("authenticated"):
-                    # User has authenticated, save the token
-                    ai_client.set_auth_token(
-                        data.get("token", ""),
-                        data.get("user", {})
-                    )
-                    
-                    print(f"User authenticated: {data.get('user', {}).get('email', 'Unknown')}")
-                    
-                    # Force UI redraw in ALL areas to ensure panel is refreshed
-                    for window in bpy.context.window_manager.windows:
-                        for area in window.screen.areas:
-                            area.tag_redraw()
-                    
-                    # Show a notification to the user
-                    def show_login_success():
-                        self.report({'INFO'}, f"Successfully signed in as {data.get('user', {}).get('email', 'Unknown')}")
-                        return None
-                    
-                    bpy.app.timers.register(show_login_success, first_interval=0.1)
-                    
-                    # Reset auth check state
-                    ai_client.auth_check_in_progress = False
-                    
-                    # Don't check anymore
-                    return None
-        except Exception as e:
-            print(f"Error checking auth status: {e}")
-        
-        # Keep checking every 2 seconds for 60 seconds (30 iterations)
-        # The timer will stop after self.check_attempts reaches 30
-        if not hasattr(self, "check_attempts"):
-            self.check_attempts = 0
-        
-        self.check_attempts += 1
-        if self.check_attempts >= 30:
-            print("Authentication timeout, stopping checks")
-            # Show error message to user
-            def show_timeout_message():
-                for window in bpy.context.window_manager.windows:
-                    bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
-                self.report({'ERROR'}, "Authentication timed out. Please try again.")
-                return None
-            
-            bpy.app.timers.register(show_timeout_message, first_interval=0.1)
-            
-            # Reset auth check state
-            ai_client.auth_check_in_progress = False
-            
-            return None
-        
-        return 2.0  # Check again in 2 seconds
 
 
 class GIZMO_OT_logout(Operator):
@@ -1581,15 +1704,19 @@ def register():
     bpy.utils.register_class(GIZMO_PT_ai_panel)
     
     # Start the periodic auth status check
-    if not bpy.app.timers.is_registered(check_auth_status_periodic):
-        bpy.app.timers.register(check_auth_status_periodic, persistent=True)
+    if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "register"):
+        if not bpy.app.timers.is_registered(check_auth_status_periodic):
+            bpy.app.timers.register(check_auth_status_periodic, persistent=True)
+    else:
+        print("Warning: Blender timers are not available. Authentication status checks will be disabled.")
 
 
 def unregister():
     # Remove the timer if registered
-    if bpy.app.timers.is_registered(check_auth_status_periodic):
-        bpy.app.timers.unregister(check_auth_status_periodic)
-        
+    if hasattr(bpy, "app") and hasattr(bpy.app, "timers") and hasattr(bpy.app.timers, "is_registered"):
+        if bpy.app.timers.is_registered(check_auth_status_periodic):
+            bpy.app.timers.unregister(check_auth_status_periodic)
+    
     bpy.utils.unregister_class(GIZMO_PT_ai_panel)
     bpy.utils.unregister_class(GIZMO_OT_execute_code)
     bpy.utils.unregister_class(GIZMO_OT_clear_history)
@@ -1658,10 +1785,6 @@ def check_auth_status_periodic():
             for window in bpy.context.window_manager.windows:
                 for area in window.screen.areas:
                     area.tag_redraw()
-            
-            # Update auth state in the panel
-            if hasattr(bpy.context, "area") and bpy.context.area:
-                bpy.context.area.tag_redraw()
     
     except Exception as e:
         print(f"Error in periodic auth check: {e}")
