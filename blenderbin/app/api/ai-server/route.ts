@@ -330,6 +330,7 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "";
 // Model provider mapping
 const MODEL_PROVIDERS = {
   // Claude models
+  "claude-3-7-sonnet-20240709": "anthropic",
   "claude-3-5-sonnet-20240620": "anthropic",
   "claude-3-opus-20240229": "anthropic",
   "claude-3-sonnet-20240229": "anthropic",
