@@ -6,24 +6,17 @@ import Link from 'next/link';
 import { auth } from '../../lib/firebase-client';
 import { User } from 'firebase/auth';
 import Image from 'next/image';
+import ProfileModal from '../ProfileModal/ProfileModal';
 
 import styles from './NavBar.module.scss';
-
-interface SubscriptionStatus {
-  isSubscribed: boolean;
-  priceId?: string;
-  cancelAtPeriodEnd?: boolean;
-  currentPeriodEnd?: string;
-  status?: string;
-}
 
 const NavBar = () => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
-    isSubscribed: false
-  });
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profilePicUrl, setProfilePicUrl] = useState<string>('');
+  const [profilePicError, setProfilePicError] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -34,28 +27,28 @@ const NavBar = () => {
     return () => unsubscribe();
   }, []);
 
+  // Add useEffect for fetching profile picture
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setUser(user);
-      if (user) {
+    const fetchProfilePic = async () => {
+      if (user?.email) {
         try {
-          const response = await fetch(`/api/subscription/status?userId=${user.uid}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch subscription status');
-          }
-          const data = await response.json();
-          setSubscriptionStatus(data);
+          // Use our proxy API route for the profile image
+          const profileImageUrl = `/api/profile-image/${encodeURIComponent(user.email)}`;
+          
+          // Set the profile picture URL directly
+          setProfilePicUrl(profileImageUrl);
+          
+          // Reset error state
+          setProfilePicError(false);
         } catch (error) {
-          console.error('Error fetching subscription status:', error);
+          console.error('Error setting up profile picture:', error);
+          setProfilePicError(true);
         }
-      } else {
-        setSubscriptionStatus({ isSubscribed: false });
       }
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, []);
+    fetchProfilePic();
+  }, [user?.email]);
 
   const handleLogout = async () => {
     try {
@@ -68,29 +61,12 @@ const NavBar = () => {
     }
   };
 
-  const handleRedownload = async () => {
-    try {
-      const response = await fetch(`/api/download?userId=${user?.uid}`);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Download error:', data.error);
-        return;
-      }
-
-      if (data.downloadUrl) {
-        window.location.href = data.downloadUrl;
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-    }
-  };
-
   if (loading) {
     return <div className={styles.loading}>Loading...</div>;
   }
 
   return (
+    <>
     <nav className={styles.navbar}>
       <div className={styles.navContainer}>
         {/* Logo and brand */}
@@ -106,43 +82,67 @@ const NavBar = () => {
 
         {/* Main navigation */}
         <div className={styles.navLinks}>
-          {/* Remove pricing link from main nav */}
         </div>
 
         {/* Auth section */}
         <div className={styles.authButtons}>
+          <Link href="/pricing" className={styles.loginButton}>
+            Pricing
+          </Link>
+          
+          <Link href="/addons" className={styles.loginButton}>
+            Addons
+          </Link>
+          
           {user ? (
             <div className={styles.authdiv}>
-              {/* Show Dashboard button for any authenticated user */}
-              <Link href="/dashboard" className={styles.dashboardButton}>
-                Dashboard
-              </Link>
-
-              {subscriptionStatus.isSubscribed && (
-                <button onClick={handleRedownload} className={styles.dashboardButton}>
-                  Re-Download
-                </button>
-              )}
-              
-              {/* Add Gizmo Pricing button for authenticated users too */}
-              <Link href="/pricing" className={styles.subscriptionsButton}>
-                Gizmo Pricing
-              </Link>
-              
               <button onClick={handleLogout} className={styles.dashboardButton}>
                 Logout
               </button>
+                
+                {/* Profile Picture Button */}
+                <button
+                  onClick={() => setProfileModalOpen(true)}
+                  className={styles.profileButton}
+                  title="Profile & Subscriptions"
+                >
+                  <div className={styles.profilePicContainer}>
+                    {profilePicUrl && !profilePicError ? (
+                      <img
+                        src={`${profilePicUrl}${profilePicUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`}
+                        alt="Profile"
+                        width={32}
+                        height={32}
+                        onError={() => {
+                          setProfilePicError(true);
+                        }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <Image
+                        src="/default-profile.svg"
+                        alt="Default Profile"
+                        width={32}
+                        height={32}
+                      />
+                    )}
+                  </div>
+              </button>
             </div>
           ) : (
-            <>
-              <Link href="/signup" className={styles.loginButton}>Log in</Link>
-              <Link href="/signup" className={styles.signupButton}>Sign up</Link>
-              <Link href="/pricing" className={styles.subscriptionsButton}>Gizmo Pricing</Link>
-            </>
+            <Link href="/signup" className={styles.signupButton}>Log In</Link>
           )}
         </div>
       </div>
     </nav>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        user={user}
+      />
+    </>
   );
 };
 

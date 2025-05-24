@@ -6,7 +6,6 @@ import { auth } from '../../../lib/firebase-client';
 import { User } from 'firebase/auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../ui/dialog";
 import { useRouter } from 'next/navigation';
-import styles from './Subscriptions.module.scss';
 
 interface SubscriptionStatus {
   isSubscribed: boolean;
@@ -14,6 +13,8 @@ interface SubscriptionStatus {
   cancelAtPeriodEnd?: boolean;
   currentPeriodEnd?: string;
   status?: string;
+  isTrialing: boolean;
+  trialDaysRemaining: number | null;
 }
 
 const Subscriptions = () => {
@@ -21,11 +22,14 @@ const Subscriptions = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
-    isSubscribed: false
+    isSubscribed: false,
+    isTrialing: false,
+    trialDaysRemaining: null
   });
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -43,17 +47,49 @@ const Subscriptions = () => {
     return () => unsubscribe();
   }, []);
 
+  // Add effect to periodically refresh subscription status for trial users
+  useEffect(() => {
+    if (user && subscriptionStatus.isTrialing) {
+      console.log('Setting up periodic refresh for trial user');
+      const interval = setInterval(async () => {
+        try {
+          await fetchSubscriptionStatus(user.uid);
+        } catch (error) {
+          console.error('Error in periodic status refresh:', error);
+        }
+      }, 30000); // Refresh every 30 seconds for trial users
+
+      return () => clearInterval(interval);
+    }
+  }, [user, subscriptionStatus.isTrialing]);
+
   const fetchSubscriptionStatus = async (userId: string) => {
     try {
-      const response = await fetch(`/api/subscription/status?userId=${userId}`);
+      console.log('Fetching subscription status for user:', userId);
+      
+      const response = await fetch(`/api/subscription/status?userId=${userId}&_t=${Date.now()}`);
       if (!response.ok) {
+        console.error('Subscription status API response not ok:', response.status, response.statusText);
         throw new Error('Failed to fetch subscription status');
       }
+      
       const data = await response.json();
+      console.log('Subscription status data received:', data);
+      
       setSubscriptionStatus(data);
       return data;
     } catch (error) {
       console.error('Error fetching subscription status:', error);
+      
+      // Set default status on error
+      const defaultStatus = {
+        isSubscribed: false,
+        status: 'none',
+        isTrialing: false,
+        trialDaysRemaining: null
+      };
+      
+      setSubscriptionStatus(defaultStatus);
       throw error;
     }
   };
@@ -69,7 +105,8 @@ const Subscriptions = () => {
         ? process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID 
         : process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
 
-      const response = await fetch('/api/checkout', {
+      // Use the specific trial endpoint for BlenderBin
+      const response = await fetch('/api/checkout/trial', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,24 +117,22 @@ const Subscriptions = () => {
         }),
       });
 
-      if (!response.ok) throw new Error('Checkout failed');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Checkout failed');
+      }
       
-      const { sessionId } = await response.json();
+      const { url } = await response.json();
       
-      // Use test key for localhost, live key for production
-      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const publishableKey = isDevelopment
-        ? process.env.NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY
-        : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-        
-      console.log(`Using Stripe key for ${isDevelopment ? 'development' : 'production'}`);
-      
-      const stripe = await loadStripe(publishableKey!);
-      if (!stripe) throw new Error('Failed to load Stripe');
-      
-      await stripe.redirectToCheckout({ sessionId });
+      // Redirect directly to the Stripe Checkout URL
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (error) {
-      console.error('Checkout error:', error);
+      console.error('BlenderBin trial checkout error:', error);
+      // You might want to show an error message to the user here
     }
   };
 
@@ -168,8 +203,29 @@ const Subscriptions = () => {
     }
   };
 
+  // Manual refresh function
+  const handleRefreshStatus = async () => {
+    if (!user) return;
+    
+    try {
+      setRefreshing(true);
+      console.log('Manual refresh triggered by user');
+      await fetchSubscriptionStatus(user.uid);
+    } catch (error) {
+      console.error('Error in manual refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   if (loading) {
-    return <div className={styles.loading}>Loading...</div>;
+    return (
+      <section className="relative bg-black px-4 py-20">
+        <div className="flex items-center justify-center">
+          <div className="text-zinc-400">Loading...</div>
+        </div>
+      </section>
+    );
   }
 
   const features = [
@@ -190,40 +246,62 @@ const Subscriptions = () => {
   ];
 
   const renderActionButton = (isYearly: boolean) => {
+    console.log('Rendering action button with status:', subscriptionStatus);
+    
     if (!user) {
       return (
         <button 
           onClick={handleAuthRedirect}
-          className={`${styles.actionButton} ${isYearly ? styles.featuredButton : ''}`}
+          className={`w-full rounded-full py-3 px-6 font-medium transition-all duration-200 ${
+            isYearly 
+              ? 'bg-white text-black hover:bg-zinc-100' 
+              : 'bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700'
+          }`}
         >
           Sign in to Subscribe
         </button>
       );
     }
 
+    // Check if user has any subscription (including trial)
     if (subscriptionStatus.isSubscribed) {
       const currentPlan = getCurrentPlan();
       const isPlanMatch = isYearly ? currentPlan === 'yearly' : currentPlan === 'monthly';
-      const isTrialing = subscriptionStatus.status === 'trialing';
+      const isTrialing = subscriptionStatus.isTrialing;
+      
+      console.log('User has subscription:', { 
+        currentPlan, 
+        isPlanMatch, 
+        isTrialing,
+        status: subscriptionStatus.status,
+        trialDaysRemaining: subscriptionStatus.trialDaysRemaining
+      });
       
       return (
         <>
           {isPlanMatch && (
-            <div className={styles.currentPlan}>
-              {isTrialing ? 'Free Trial Active' : 
-                subscriptionStatus.cancelAtPeriodEnd 
+            <div className="text-center mb-4 py-2 px-4 rounded-full bg-zinc-800/50 border border-zinc-700/50 text-zinc-300 text-sm">
+              {isTrialing ? (
+                subscriptionStatus.trialDaysRemaining !== null 
+                  ? `Free Trial Active (${subscriptionStatus.trialDaysRemaining} days left)`
+                  : 'Free Trial Active'
+              ) : subscriptionStatus.cancelAtPeriodEnd 
                   ? `Your Current Plan (Cancels on ${formatDate(subscriptionStatus.currentPeriodEnd)})` 
                   : 'Your Current Plan'}
             </div>
           )}
           <button 
             onClick={() => setCancelDialogOpen(true)}
-            className={`${styles.actionButton} ${styles.cancelButton} ${isTrialing ? styles.trialButton : ''}`}
+            className={`w-full rounded-full py-3 px-6 font-medium transition-all duration-200 ${
+              isTrialing 
+                ? 'bg-red-600/20 text-red-300 border border-red-600/30 hover:bg-red-600/30'
+                : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
             disabled={!isPlanMatch || subscriptionStatus.cancelAtPeriodEnd}
           >
             {!isPlanMatch 
               ? isTrialing
-                ? 'In Free Trial'
+                ? `In Free Trial (${subscriptionStatus.trialDaysRemaining || 0} days left)`
                 : `Subscribed to ${currentPlan === 'yearly' ? 'Yearly' : 'Monthly'}`
               : isTrialing
                 ? 'Cancel Free Trial'
@@ -236,117 +314,204 @@ const Subscriptions = () => {
       );
     }
 
-    // Check if user has any active subscription in trial mode
-    const isInAnyTrial = subscriptionStatus.status === 'trialing';
-
+    // User has no active subscription, show trial signup
     return (
       <button 
         onClick={() => handleCheckout(isYearly)}
-        className={`${styles.actionButton} ${isYearly ? styles.featuredButton : ''} ${isInAnyTrial ? styles.trialButton : ''}`}
-        disabled={isInAnyTrial}
+        className={`w-full rounded-full py-3 px-6 font-medium transition-all duration-200 ${
+          isYearly 
+            ? 'bg-white text-black hover:bg-zinc-100 hover:scale-105' 
+            : 'bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 hover:scale-105'
+        }`}
       >
-        {isInAnyTrial ? 'In Free Trial' : 'Buy Now'}
+        Start 7-Day Free Trial
       </button>
     );
   };
 
   return (
-    <section id="subscriptions" className={styles.subscriptionsSection}>
-      <h2 className={styles.title}>Choose your path</h2>
-      <p className={styles.description}>Select the plan that best fits your needs</p>
-      
-      <div className={styles.plansContainer}>
-        {/* Free Plan */}
-        <div className={styles.freePlanCard}>
-          <div className={styles.freePlanHeader}>
-            <div className={styles.freeBadge}>Free Forever</div>
-            <h3>Free Plan</h3>
-            <div className={styles.freePrice}>
-              <span className={styles.amount}>$0</span>
-              <span className={styles.interval}> / forever</span>
-            </div>
+    <section id="subscriptions" className="relative bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-20">
+      {/* Content container */}
+      <div className="relative mx-auto max-w-6xl">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between mb-16">
+          <div className="text-center flex-1">
+            <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl mb-4">
+              Choose your
+              <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                path.
+              </span>
+            </h2>
+            <p className="text-lg text-zinc-300 max-w-2xl mx-auto">
+              Select the plan that best fits your needs
+            </p>
           </div>
-          <ul className={styles.freeFeatures}>
-            {freeFeatures.map((feature, index) => (
-              <li key={index}>{feature}</li>
+          {user && (
+            <button
+              onClick={handleRefreshStatus}
+              disabled={refreshing}
+              className="absolute top-0 right-0 px-3 py-2 text-xs bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 rounded-full border border-zinc-700/50 transition-all duration-200 backdrop-blur-sm disabled:opacity-50"
+              title="Refresh subscription status"
+            >
+              {refreshing ? '⟳ Refreshing...' : '⟳ Refresh'}
+            </button>
+          )}
+        </div>
+        
+        {/* Plans grid */}
+        <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
+          
+        {/* Free Plan */}
+          <div className="rounded-3xl border border-emerald-800/50 bg-gradient-to-br from-emerald-900/20 to-emerald-800/10 p-8 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:scale-[1.02]">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-300 border border-emerald-500/30 mb-4">
+                Free Forever
+              </div>
+              <h3 className="text-2xl font-semibold text-white mb-4">Free Plan</h3>
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-white">$0</span>
+                <span className="text-zinc-400 ml-1">/ forever</span>
+              </div>
+            </div>
+            
+            <ul className="space-y-3 mb-8">
+              {freeFeatures.map((feature, index) => (
+                <li key={index} className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <svg className="h-3 w-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+          </div>
+                  <span className="text-sm">{feature}</span>
+                </li>
             ))}
           </ul>
+            
           <button 
             onClick={handleDownloadRedirect}
-            className={styles.freeActionButton}
+              className="w-full rounded-full py-3 px-6 font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 hover:scale-105"
           >
             Download Now
           </button>
         </div>
 
         {/* Monthly Plan */}
-        <div className={`${styles.planCard} ${getCurrentPlan() === 'monthly' ? styles.currentPlan : ''}`}>
-          <div className={styles.planHeader}>
-            <h3>Monthly Plan</h3>
-            <div className={styles.price}>
-              <span className={styles.amount}>$14</span>
-              <span className={styles.interval}> / month</span>
+          <div className={`rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:scale-[1.02] ${
+            getCurrentPlan() === 'monthly' ? 'ring-2 ring-blue-500/50' : ''
+          }`}>
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-semibold text-white mb-4">Monthly Plan</h3>
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-white">$14</span>
+                <span className="text-zinc-400 ml-1">/ month</span>
+              </div>
+              <div className="inline-flex items-center rounded-full bg-green-500/20 px-3 py-1 text-xs font-medium text-green-300 border border-green-500/30">
+                7-day free trial included
+              </div>
             </div>
+            
+            <ul className="space-y-3 mb-8">
+              {features.map((feature, index) => (
+                <li key={index} className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <svg className="h-3 w-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
           </div>
-          <ul className={styles.features}>
-            {features.map((feature, index) => (
-              <li key={index}>{feature}</li>
+                  <span className="text-sm">{feature}</span>
+                </li>
             ))}
           </ul>
+            
           {renderActionButton(false)}
         </div>
 
-        {/* Yearly Plan */}
-        <div className={`${styles.planCard} ${styles.featuredPlan} ${getCurrentPlan() === 'yearly' ? styles.currentPlan : ''}`}>
-          <div className={styles.planHeader}>
-            <div className={styles.saveBadge}>Save 25%</div>
-            <h3>Yearly Plan</h3>
-            <div className={styles.price}>
-              <span className={styles.amount}>$126</span>
-              <span className={styles.interval}> / year</span>
+          {/* Yearly Plan - Featured */}
+          <div className={`rounded-3xl border border-purple-800/50 bg-gradient-to-br from-purple-900/20 to-blue-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-purple-700/50 hover:scale-[1.02] relative ${
+            getCurrentPlan() === 'yearly' ? 'ring-2 ring-purple-500/50' : ''
+          }`}>
+            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+              <div className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-500 to-blue-500 px-4 py-1 text-xs font-medium text-white">
+                Save 25%
+              </div>
+            </div>
+            
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-semibold text-white mb-4">Yearly Plan</h3>
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-white">$126</span>
+                <span className="text-zinc-400 ml-1">/ year</span>
+              </div>
+              <div className="inline-flex items-center rounded-full bg-green-500/20 px-3 py-1 text-xs font-medium text-green-300 border border-green-500/30">
+                7-day free trial included
             </div>
           </div>
-          <ul className={styles.features}>
+            
+            <ul className="space-y-3 mb-8">
             {features.map((feature, index) => (
-              <li key={index}>{feature}</li>
+                <li key={index} className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <svg className="h-3 w-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-sm">{feature}</span>
+                </li>
             ))}
           </ul>
+            
           {renderActionButton(true)}
+          </div>
+        </div>
+
+        {/* Subtle background elements */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute top-1/4 left-0 h-96 w-96 rounded-full bg-emerald-500/3 blur-3xl" />
+          <div className="absolute top-1/2 right-0 h-96 w-96 rounded-full bg-purple-500/3 blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/3 h-96 w-96 rounded-full bg-blue-500/3 blur-3xl" />
         </div>
       </div>
 
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-zinc-900 border-zinc-800">
           <DialogHeader>
-            <DialogTitle>{subscriptionStatus.status === 'trialing' ? 'Cancel Free Trial' : 'Cancel Subscription'}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white">
+              {subscriptionStatus.status === 'trialing' ? 'Cancel Free Trial' : 'Cancel Subscription'}
+            </DialogTitle>
+            <DialogDescription className="text-zinc-300">
               Are you sure you want to cancel your {subscriptionStatus.status === 'trialing' ? 'free trial' : 'subscription'}? You&apos;ll lose access to:
             </DialogDescription>
           </DialogHeader>
-          <div className={styles.cancelDialogContent}>
-            <ul>
+          <div className="my-6">
+            <ul className="space-y-2">
               {features.map((feature, index) => (
-                <li key={index}>{feature}</li>
+                <li key={index} className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-4 w-4 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <span className="text-red-400 text-xs">•</span>
+                  </div>
+                  <span className="text-sm">{feature}</span>
+                </li>
               ))}
             </ul>
-            <p className="text-red-500 mt-2 font-bold">
+            <p className="text-red-400 mt-4 font-medium text-sm">
               Your {subscriptionStatus.status === 'trialing' ? 'free trial' : 'subscription'} will be canceled immediately and you will lose access right away.
             </p>
             {cancelError && (
-              <p className="text-red-500 mt-2">{cancelError}</p>
+              <p className="text-red-400 mt-2 text-sm">{cancelError}</p>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <button 
               onClick={() => setCancelDialogOpen(false)}
-              className={styles.cancelDialogButton}
+              className="px-6 py-2 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 transition-colors disabled:opacity-50"
               disabled={cancellingSubscription}
             >
               {subscriptionStatus.status === 'trialing' ? 'Keep Free Trial' : 'Keep Subscription'}
             </button>
             <button 
               onClick={handleCancelSubscription}
-              className={styles.cancelDialogButtonDanger}
+              className="px-6 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
               disabled={cancellingSubscription}
             >
               {cancellingSubscription ? 'Cancelling...' : `Yes, Cancel ${subscriptionStatus.status === 'trialing' ? 'Trial' : 'Now'}`}

@@ -3,6 +3,73 @@ import { db } from '../../lib/firebase-admin';
 import { stripe } from '../../lib/stripe';
 import { getAuth } from 'firebase-admin/auth';
 
+// BlenderBin price IDs
+const BLENDERBIN_PRICE_IDS = [
+  // BlenderBin Production Price IDs
+  process.env.NEXT_PUBLIC_STRIPE_PRICE_ID, // Monthly
+  process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID, // Yearly
+  // BlenderBin Test Price IDs
+  process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID, // Test Monthly
+  process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID, // Test Yearly
+].filter(Boolean); // Remove undefined values
+
+// Gizmo AI price IDs (properly named)
+const GIZMO_PRICE_IDS = [
+  // Gizmo Production Price IDs
+  process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID, // Gizmo Monthly
+  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID, // Gizmo Yearly
+  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Monthly
+  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Yearly
+  // Gizmo Test Price IDs
+  process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID, // Gizmo Test Monthly
+  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID, // Gizmo Test Yearly
+  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Monthly
+  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Yearly
+].filter(Boolean); // Remove undefined values
+
+// Helper function to determine subscription type
+function getSubscriptionType(priceId: string): 'blenderbin' | 'gizmo' | 'unknown' {
+  if (BLENDERBIN_PRICE_IDS.includes(priceId)) {
+    return 'blenderbin';
+  } else if (GIZMO_PRICE_IDS.includes(priceId)) {
+    return 'gizmo';
+  }
+  return 'unknown';
+}
+
+// Helper function to check if user has existing subscription for specific product
+async function checkExistingSubscription(userId: string, productType: 'blenderbin' | 'gizmo'): Promise<boolean> {
+  const subscriptionsSnapshot = await db
+    .collection('customers')
+    .doc(userId)
+    .collection('subscriptions')
+    .where('status', 'in', ['active', 'trialing'])
+    .get();
+
+  if (subscriptionsSnapshot.empty) {
+    return false;
+  }
+
+  // Filter subscriptions by product type
+  const relevantPriceIds = productType === 'blenderbin' ? BLENDERBIN_PRICE_IDS : GIZMO_PRICE_IDS;
+  
+  for (const subDoc of subscriptionsSnapshot.docs) {
+    const subData = subDoc.data();
+    
+    // Check if subscription has items with relevant price IDs
+    if (subData.items && subData.items.length > 0) {
+      for (const item of subData.items) {
+        const priceId = item.price?.id;
+        if (priceId && relevantPriceIds.includes(priceId)) {
+          return true;
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
 async function getOrCreateStripeCustomer(userId: string) {
   try {
     // First try to get existing customer
@@ -34,18 +101,6 @@ async function getOrCreateStripeCustomer(userId: string) {
           name: user.displayName || 'BlenderBin Customer'
         }, { merge: true });
 
-        // Ensure subscriptions subcollection exists
-        const subscriptionsRef = db.collection('customers').doc(userId).collection('subscriptions');
-        const subscriptionsSnapshot = await subscriptionsRef.limit(1).get();
-        
-        if (subscriptionsSnapshot.empty) {
-          await subscriptionsRef.doc('placeholder').set({
-            placeholder: true,
-            status: true,
-            created: new Date().toISOString()
-          });
-        }
-
         return newCustomer.id;
       }
       
@@ -68,20 +123,9 @@ async function getOrCreateStripeCustomer(userId: string) {
     await db.collection('customers').doc(userId).set({
       stripeId: customer.id,
       email: user.email,
-      name: user.displayName || 'BlenderBin Customer'
+      name: user.displayName || 'BlenderBin Customer',
+      createdAt: new Date()
     }, { merge: true });
-
-    // Ensure subscriptions subcollection exists
-    const subscriptionsRef = db.collection('customers').doc(userId).collection('subscriptions');
-    const subscriptionsSnapshot = await subscriptionsRef.limit(1).get();
-    
-    if (subscriptionsSnapshot.empty) {
-      await subscriptionsRef.doc('placeholder').set({
-        placeholder: true,
-        status: true,
-        created: new Date().toISOString()
-      });
-    }
 
     return customer.id;
   } catch (error) {
@@ -108,6 +152,30 @@ export async function POST(request: Request) {
     // Log environment for debugging
     console.log(`Processing checkout in ${isDevelopment ? 'development' : 'production'} mode`);
 
+    // Determine product type from price ID
+    const productType = getSubscriptionType(priceId);
+    
+    if (productType === 'unknown') {
+      console.log(`Unknown product type for price ID: ${priceId}`);
+      return NextResponse.json(
+        { error: 'Invalid price ID' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`Checkout for ${productType} subscription with price ID: ${priceId}`);
+
+    // Check if user already has an active subscription for this specific product
+    const hasExistingSubscription = await checkExistingSubscription(userId, productType);
+    
+    if (hasExistingSubscription) {
+      console.log(`User ${userId} already has an active ${productType} subscription`);
+      return NextResponse.json(
+        { error: `User already has an active ${productType} subscription` },
+        { status: 400 }
+      );
+    }
+
     // Get or create Stripe customer
     const stripeCustomerId = await getOrCreateStripeCustomer(userId);
     
@@ -123,20 +191,27 @@ export async function POST(request: Request) {
     
     // In development, use test price IDs
     if (isDevelopment) {
-      // Map production price IDs to test price IDs
+      // Map production price IDs to test price IDs for both products
       const priceIdMap: Record<string, string> = {
+        // BlenderBin price ID mapping
         [process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID || '',
-        [process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID || ''
+        [process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID || '',
+        // Gizmo AI price ID mapping (properly named)
+        [process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID || '',
+        [process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID || '',
+        [process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID || '',
+        [process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID || ''
       };
       
       // Use mapped test price ID if available
       actualPriceId = priceIdMap[priceId] || priceId;
-      console.log(`Mapped price ID ${priceId} to test price ID ${actualPriceId}`);
+      console.log(`Mapped ${productType} price ID ${priceId} to test price ID ${actualPriceId}`);
     }
 
     // Verify the price ID exists
     try {
-      await stripe.prices.retrieve(actualPriceId);
+      const price = await stripe.prices.retrieve(actualPriceId);
+      console.log(`Retrieved ${productType} price: ${price.id}, amount: ${price.unit_amount}, currency: ${price.currency}`);
     } catch (error) {
       console.error('Error retrieving price:', error);
       return NextResponse.json(
@@ -145,12 +220,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Set appropriate success and cancel URLs based on environment
+    // Set appropriate success and cancel URLs based on environment and product type
     const baseUrl = isDevelopment
       ? process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'
       : 'https://blenderbin.com';
       
-    // Create checkout session with updated parameters for Firebase extension
+    // Set product-specific URLs
+    const successUrl = productType === 'blenderbin' 
+      ? `${baseUrl}/download?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`
+      : `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}&userId=${userId}&product=gizmo`;
+      
+    const cancelUrl = `${baseUrl}/pricing`;
+      
+    // Create checkout session with proper trial setup
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
@@ -160,10 +242,34 @@ export async function POST(request: Request) {
         quantity: 1
       }],
       subscription_data: {
-        trial_period_days: 7 // Add 7-day free trial for all subscriptions
+        // Only apply trial to BlenderBin subscriptions
+        ...(productType === 'blenderbin' && {
+          trial_period_days: 7, // 7-day free trial for BlenderBin only
+          trial_settings: {
+            end_behavior: {
+              missing_payment_method: 'cancel' // Cancel if no payment method after trial
+            }
+          }
+        }),
+        metadata: {
+          firebaseUID: userId,
+          productType: productType,
+          environment: isDevelopment ? 'development' : 'production',
+          trialEnabled: productType === 'blenderbin' ? 'true' : 'false'
+        }
       },
-      success_url: `${baseUrl}/download?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`,
-      cancel_url: `${baseUrl}/`,
+      payment_method_collection: productType === 'blenderbin' ? 'always' : 'if_required', // Always collect payment method for BlenderBin trials
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          metadata: {
+            firebaseUID: userId,
+            productType: productType
+          }
+        }
+      },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       allow_promotion_codes: true,
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
@@ -171,31 +277,31 @@ export async function POST(request: Request) {
         name: 'auto',
         address: 'auto'
       },
-      client_reference_id: userId, // Critical for Firebase extension
+      client_reference_id: userId, // Critical for webhooks
       metadata: {
         firebaseUID: userId,
+        productType: productType, // Add product type to metadata
         environment: isDevelopment ? 'development' : 'production',
         originalPriceId: priceId,
-        mappedPriceId: actualPriceId
+        mappedPriceId: actualPriceId,
+        trialEnabled: productType === 'blenderbin' ? 'true' : 'false'
       }
     });
 
-    // Pre-create a subscription document to help with tracking
-    await db.collection('users').doc(userId).collection('checkout_sessions').doc(session.id).set({
+    // Store checkout session info with product type
+    await db.collection('customers').doc(userId).collection('checkout_sessions').doc(session.id).set({
       sessionId: session.id,
-      created: new Date().toISOString(),
+      created: new Date(),
       priceId: priceId,
       actualPriceId: actualPriceId,
+      productType: productType, // Store product type
       status: 'created',
-      trial_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Add trial end date
       environment: isDevelopment ? 'development' : 'production'
     });
 
-    // Ensure that the placeholder document has the status: true field
-    const placeholderRef = db.collection('customers').doc(userId).collection('subscriptions').doc('placeholder');
-    await placeholderRef.set({ status: "trialing" }, { merge: true });
+    console.log(`Created ${productType} checkout session ${session.id} for user ${userId}`);
 
-    return NextResponse.json({ sessionId: session.id });
+    return NextResponse.json({ sessionId: session.id, productType: productType });
   } catch (error: unknown) {
     console.error('Checkout error:', error);
     

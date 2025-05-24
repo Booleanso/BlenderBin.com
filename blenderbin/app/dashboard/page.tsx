@@ -9,39 +9,23 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { auth, db } from '../lib/firebase-client';
-import { onAuthStateChanged, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import axios from 'axios';
-import Image from 'next/image';
 
 // Import any UI components needed
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import UserAnalytics from '../components/UserAnalytics';
 import UsageBasedPricing from '../components/UsageBasedPricing';
-import { FirebaseError } from 'firebase/app';
+import WaitlistOverlay from '../components/WaitlistOverlay';
+import { isWaitlistEnabled } from '../utils/waitlist';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<any>(null);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<any>({
-    isSubscribed: false,
-    cancelAtPeriodEnd: false,
-    currentPeriodEnd: '',
-    status: ''
-  });
-  
-  // Add state for Gizmo subscription
-  const [gizmoSubscription, setGizmoSubscription] = useState<any>(null);
-  const [gizmoSubscriptionStatus, setGizmoSubscriptionStatus] = useState<any>({
-    isSubscribed: false,
-    cancelAtPeriodEnd: false,
-    currentPeriodEnd: '',
-    status: ''
-  });
   const [activeTab, setActiveTab] = useState('team');
-  const [isBillingLoading, setIsBillingLoading] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
   const router = useRouter();
   
   // Usage-based pricing settings
@@ -57,17 +41,6 @@ export default function Dashboard() {
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState(false);
-
-  // Add states for profile management
-  const [profilePicUrl, setProfilePicUrl] = useState<string>('');
-  const [profilePicError, setProfilePicError] = useState(false);
-  const [editingEmail, setEditingEmail] = useState(false);
-  const [newEmail, setNewEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
-  const [password, setPassword] = useState('');
-  const [deleteError, setDeleteError] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
   
   // Toggle boolean settings
   const toggleSetting = async (setting: string) => {
@@ -200,245 +173,22 @@ export default function Dashboard() {
     }
   };
 
-  // Add functions for profile management
-  const handleEmailUpdate = async () => {
-    try {
-      if (!user) return;
-      
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-        setEmailError('Please enter a valid email address');
-        return;
-      }
-
-      await updateEmail(user, newEmail);
-      setEditingEmail(false);
-      setEmailError('');
-      setNewEmail('');
-      
-      // Show success message
-      setSaveMessage('Email updated successfully');
-      setSaveError(false);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setSaveMessage('');
-      }, 3000);
-    } catch (error: any) {
-      const errorMessage = error instanceof FirebaseError ? error.message : 'Failed to update email';
-      setEmailError(errorMessage);
-      console.error('Error updating email:', error);
-    }
-  };
-  
-  const handleProfilePicUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user?.email) return;
-
-    try {
-      setSaveMessage('Uploading profile picture...');
-      setSaveError(false);
-
-      // Get the user's ID token for authentication
-      const idToken = await user.getIdToken();
-      
-      // Create form data to send the file
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Use the API route to upload the file
-      const response = await fetch('/api/profile-picture/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload profile picture');
-      }
-
-      const data = await response.json();
-      console.log('Upload response:', data);
-
-      // Show success message
-      setSaveMessage('Profile picture updated successfully');
-      setSaveError(false);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setSaveMessage('');
-      }, 3000);
-
-      // Reset error state
-      setProfilePicError(false);
-
-      // Use our proxy API route for the profile image
-      const profileImageUrl = `/api/profile-image/${encodeURIComponent(user.email)}?t=${Date.now()}`; // Add timestamp to bust cache
-      console.log('Setting profile picture URL after upload:', profileImageUrl);
-      setProfilePicUrl(profileImageUrl);
-    } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      
-      // Show error message
-      setSaveMessage(error instanceof Error ? error.message : 'Failed to upload profile picture');
-      setSaveError(true);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setSaveMessage('');
-      }, 3000);
-
-      // Set error state
-      setProfilePicError(true);
-    }
-  };
-  
-  const handleDeleteAccount = async () => {
-    if (!user) return;
-    
-    try {
-      setIsDeleting(true);
-      setDeleteError('');
-      
-      // Re-authenticate user before deleting account
-      const credential = EmailAuthProvider.credential(
-        user.email || '',
-        password
-      );
-      
-      await reauthenticateWithCredential(user, credential);
-      
-      // Delete the user
-      await deleteUser(user);
-      
-      // Redirect to home page
-      router.push('/');
-    } catch (error) {
-      setDeleteError('Failed to delete account. Please make sure your password is correct.');
-      console.error('Error deleting account:', error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-  
-  const handleUnsubscribe = async () => {
-    try {
-      if (!user?.uid) return;
-      
-      setSaveMessage('Cancelling subscription...');
-      setSaveError(false);
-      
-      const response = await fetch('/api/subscription/cancel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to cancel subscription');
-      }
-
-      setSaveMessage('Subscription canceled successfully');
-      setSaveError(false);
-      
-      // Refresh the page after a short delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } catch (error) {
-      console.error('Error cancelling subscription:', error);
-      
-      setSaveMessage(error instanceof Error ? error.message : 'Failed to cancel subscription');
-      setSaveError(true);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setSaveMessage('');
-      }, 3000);
-    }
-  };
-  
-  // Add useEffect for fetching profile picture
-  useEffect(() => {
-    const fetchProfilePic = async () => {
-      if (user?.email) {
-        try {
-          // Use our proxy API route for the profile image
-          const profileImageUrl = `/api/profile-image/${encodeURIComponent(user.email)}`;
-          
-          // Set the profile picture URL directly
-          setProfilePicUrl(profileImageUrl);
-          
-          // Reset error state
-          setProfilePicError(false);
-        } catch (error) {
-          console.error('Error setting up profile picture:', error);
-          setProfilePicError(true);
-        }
-      }
-    };
-
-    fetchProfilePic();
-  }, [user?.email]);
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         
-        // Fetch subscription information
+        // Fetch user data for usage-based pricing settings
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           const userData = userDoc.data();
-          
-          // Set BlenderBin subscription data
-          if (userData && userData.stripeRole) {
-            setSubscription(userData.stripeRole);
-          }
-          
-          // Set Gizmo subscription data (if available in userData)
-          if (userData && userData.gizmoSubscription) {
-            setGizmoSubscription(userData.gizmoSubscription);
-          }
-          
-          // Fetch BlenderBin subscription status details
-          const response = await fetch(`/api/subscription/status?userId=${currentUser.uid}`);
-          if (response.ok) {
-            const statusData = await response.json();
-            setSubscriptionStatus(statusData);
-          }
-          
-          // Fetch Gizmo subscription status details if needed
-          try {
-            const gizmoResponse = await fetch(`/api/gizmo/subscription/status?userId=${currentUser.uid}`);
-            if (gizmoResponse.ok) {
-              const gizmoStatusData = await gizmoResponse.json();
-              setGizmoSubscriptionStatus(gizmoStatusData);
-            }
-          } catch (error) {
-            console.error('Error fetching Gizmo subscription status:', error);
-            // Default to free tier if we can't fetch the status
-            setGizmoSubscriptionStatus({
-              isSubscribed: false,
-              cancelAtPeriodEnd: false,
-              currentPeriodEnd: '',
-              status: ''
-            });
-          }
           
           // Fetch usage-based pricing settings if they exist
           if (userData && userData.usagePricingSettings) {
             setUsagePricing(userData.usagePricingSettings);
           }
         } catch (error) {
-          console.error('Error fetching subscription:', error);
+          console.error('Error fetching user data:', error);
         }
       } else {
         // Redirect to signup if not authenticated
@@ -446,6 +196,9 @@ export default function Dashboard() {
       }
       setLoading(false);
     });
+
+    // Check waitlist setting
+    setShowWaitlist(isWaitlistEnabled());
 
     return () => unsubscribe();
   }, [router]);
@@ -460,15 +213,15 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 to-black text-white">
+      {/* Waitlist Overlay - shown only when enabled */}
+      {showWaitlist && <WaitlistOverlay />}
+      
       <header className="border-b border-zinc-800">
         <div className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
             <Link href="/" className="text-xl font-bold text-white">
               
             </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Download button removed from header */}
           </div>
         </div>
       </header>
@@ -479,406 +232,7 @@ export default function Dashboard() {
           <p className="text-zinc-400 mt-2">You can manage your account, billing, and team settings here.</p>
         </div>
         
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-8">
-          <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 shadow-xl backdrop-blur-sm">
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Basic Information</h2>
-              <div className="mt-4 space-y-6">
-                <div className="flex flex-col items-center">
-                  <div className="w-24 h-24 rounded-full overflow-hidden mb-3 border-2 border-zinc-800">
-                    {profilePicUrl && !profilePicError ? (
-                      <img
-                        src={`${profilePicUrl}${profilePicUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`}
-                        alt="Profile"
-                        width={96}
-                        height={96}
-                        onError={() => {
-                          // Silently handle the error by using the default image
-                          setProfilePicError(true);
-                        }}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <Image
-                        src="/default-profile.svg"
-                        alt="Default Profile"
-                        width={96}
-                        height={96}
-                      />
-                    )}
-                  </div>
-                  <label className="cursor-pointer bg-zinc-800/50 hover:bg-zinc-700 text-zinc-300 text-sm px-3 py-1 rounded-md transition-colors shadow-sm">
-                    Change Picture
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePicUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-zinc-400">Name</div>
-                  <div className="text-white">{user?.displayName || 'Not set'}</div>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-zinc-400 mb-1">Email</div>
-                  {editingEmail ? (
-                    <div className="space-y-2">
-                      <input
-                        type="email"
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                        placeholder="New email address"
-                        className="w-full px-3 py-2 border border-zinc-700 bg-zinc-800/50 rounded-md text-sm text-zinc-200 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                      {emailError && (
-                        <p className="text-sm text-red-500">{emailError}</p>
-                      )}
-                      <div className="flex space-x-2 mt-2">
-                        <button
-                          onClick={handleEmailUpdate}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingEmail(false);
-                            setEmailError('');
-                            setNewEmail('');
-                          }}
-                          className="bg-zinc-800/50 hover:bg-zinc-700 text-zinc-300 px-3 py-1 rounded-md text-sm shadow-sm"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="text-white">{user?.email}</div>
-                      <button
-                        onClick={() => {
-                          setEditingEmail(true);
-                          setNewEmail(user?.email || '');
-                        }}
-                        className="text-sm text-blue-400 hover:text-blue-300"
-                      >
-                        Change
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <div className="text-sm text-zinc-400 mb-1">Password</div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-white">••••••••</div>
-                    <Link 
-                      href="/reset-password" 
-                      className="text-sm text-blue-400 hover:text-blue-300"
-                    >
-                      Reset
-                    </Link>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-zinc-400">Member since</div>
-                  <div className="text-white">{user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-gray-800">
-              <h2 className="text-xl font-semibold text-white">Account</h2>
-              
-              {/* BlenderBin subscription section */}
-              <div className="mt-6 mb-6 p-4 border border-zinc-800 rounded-md bg-zinc-900/50 shadow-sm">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-blue-400"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><line x1="12" y1="22" x2="12" y2="12"></line></svg>
-                  BlenderBin Subscription
-                </h3>
-                <div className="flex items-center mt-2">
-                  <div className="text-sm inline-flex items-center px-2.5 py-1 rounded-full bg-black border border-gray-800 text-gray-300">
-                    {subscription ? subscription : 'Free'}
-                  </div>
-                  {subscription === 'business' && (
-                    <span className="ml-2 text-xs bg-amber-800 text-amber-300 px-1.5 py-0.5 rounded uppercase font-semibold">business</span>
-                  )}
-                </div>
-                
-                {subscription && (
-                  <div className="mt-4">
-                    {subscriptionStatus?.cancelAtPeriodEnd ? (
-                      <div className="text-sm text-amber-500">
-                        Your subscription will cancel on {new Date(subscriptionStatus?.currentPeriodEnd || '').toLocaleDateString()}
-                      </div>
-                    ) : subscriptionStatus?.status === 'trialing' ? (
-                      <>
-                        <div className="text-sm text-blue-500 mb-2">
-                          You are currently in your free trial period
-                          {subscriptionStatus?.currentPeriodEnd && (
-                            <span className="block mt-1">
-                              Trial ends on: {new Date(subscriptionStatus?.currentPeriodEnd).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={handleUnsubscribe}
-                          className="w-full mt-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-md text-sm font-medium border border-red-900/50"
-                        >
-                          Cancel Free Trial
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={handleUnsubscribe}
-                        className="w-full mt-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-md text-sm font-medium border border-red-900/50"
-                      >
-                        Cancel Subscription
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* Gizmo subscription section */}
-              <div className="p-4 border border-zinc-800 rounded-md bg-zinc-900/50 shadow-sm">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-blue-400"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
-                  Gizmo AI Subscription
-                </h3>
-                <div className="flex items-center mt-2">
-                  <div className="text-sm inline-flex items-center px-2.5 py-1 rounded-full bg-black border border-gray-800 text-gray-300">
-                    {gizmoSubscription ? gizmoSubscription : 'Free'}
-                  </div>
-                  {gizmoSubscription === 'business' && (
-                    <span className="ml-2 text-xs bg-amber-800 text-amber-300 px-1.5 py-0.5 rounded uppercase font-semibold">business</span>
-                  )}
-                </div>
-                
-                {gizmoSubscription ? (
-                  <div className="mt-4">
-                    {gizmoSubscriptionStatus?.cancelAtPeriodEnd ? (
-                      <div className="text-sm text-amber-500">
-                        Your Gizmo subscription will cancel on {new Date(gizmoSubscriptionStatus?.currentPeriodEnd || '').toLocaleDateString()}
-                      </div>
-                    ) : gizmoSubscriptionStatus?.status === 'trialing' ? (
-                      <>
-                        <div className="text-sm text-blue-500 mb-2">
-                          You are currently in your Gizmo free trial period
-                          {gizmoSubscriptionStatus?.currentPeriodEnd && (
-                            <span className="block mt-1">
-                              Trial ends on: {new Date(gizmoSubscriptionStatus?.currentPeriodEnd).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => {
-                            // Handle Gizmo subscription cancellation
-                          }}
-                          className="w-full mt-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-md text-sm font-medium border border-red-900/50"
-                        >
-                          Cancel Gizmo Free Trial
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          // Handle Gizmo subscription cancellation
-                        }}
-                        className="w-full mt-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-md text-sm font-medium border border-red-900/50"
-                      >
-                        Cancel Gizmo Subscription
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mt-4">
-                    <Link href="/pricing" className="block text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                      Upgrade Gizmo AI
-                    </Link>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Upgrade to access advanced AI features in Blender, including unlimited AI queries and priority support.
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-                              <div className="mt-6">
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-4">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="flex items-center text-gray-300 hover:text-white p-0"
-                      >
-                        <PlusCircle className="h-4 w-4 mr-1" /> Invite
-                      </Button>
-                      
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="flex items-center text-gray-300 hover:text-white p-0"
-                        asChild
-                      >
-                        <Link href="/download">
-                          <Download className="h-4 w-4 mr-1" /> Download
-                        </Link>
-                      </Button>
-                    </div>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="flex items-center text-gray-300 hover:text-white p-0"
-                      onClick={async () => {
-                      try {
-                        setIsBillingLoading(true);
-                        
-                        // Get auth token
-                        const token = await user.getIdToken();
-                        
-                        // Call our API to get a Stripe Billing Portal URL
-                        const response = await axios.post('/api/create-billing-portal', 
-                          {
-                            returnUrl: window.location.href
-                          },
-                          {
-                            headers: {
-                              Authorization: `Bearer ${token}`
-                            }
-                          }
-                        );
-                        
-                        if (response.data.success) {
-                          // If we created a new customer
-                          if (response.data.newCustomer) {
-                            console.log('Created new Stripe customer');
-                          }
-                          
-                          // Open the Stripe Billing Portal in a new tab
-                          window.open(response.data.url, '_blank');
-                        } else if (response.data.redirectUrl) {
-                          // If there's no Stripe customer yet, redirect to upgrade page
-                          router.push(response.data.redirectUrl);
-                        }
-                      } catch (error) {
-                        console.error('Error opening billing portal:', error);
-                        
-                        // Show error message to user
-                        alert('Failed to open billing portal. Please try again later.');
-                      } finally {
-                        setIsBillingLoading(false);
-                      }
-                    }}
-                  >
-                    {isBillingLoading ? 'Loading...' : 'Billing'}
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Add delete account button */}
-              <div className="mt-6">
-                <button
-                  onClick={() => setDeleteAccountModalOpen(true)}
-                  className="w-full bg-red-900/30 hover:bg-red-900/50 text-red-400 px-4 py-2 rounded-md text-sm font-medium border border-red-900/50"
-                >
-                  Delete Account
-                </button>
-              </div>
-              
-              {/* Delete account confirmation modal */}
-              {deleteAccountModalOpen && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-                  <div className="bg-zinc-900/90 p-6 rounded-xl max-w-md w-full backdrop-blur-sm border border-zinc-800 shadow-xl">
-                    <h3 className="text-xl font-bold text-white mb-4">Delete Account</h3>
-                                          <p className="text-zinc-300 mb-4">
-                      Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.
-                    </p>
-                    <div className="mb-4">
-                      <label className="block text-zinc-400 text-sm mb-2">
-                        Please enter your password to confirm:
-                      </label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full border border-zinc-700 bg-zinc-800/50 rounded-md p-2 text-white shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                      {deleteError && (
-                        <p className="text-red-500 text-sm mt-1">{deleteError}</p>
-                      )}
-                    </div>
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        onClick={() => {
-                          setDeleteAccountModalOpen(false);
-                          setPassword('');
-                          setDeleteError('');
-                        }}
-                        className="px-4 py-2 bg-zinc-800/50 text-zinc-300 rounded-md hover:bg-zinc-700 shadow-sm border border-zinc-700"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleDeleteAccount}
-                        disabled={isDeleting}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {isDeleting ? 'Deleting...' : 'Delete Account'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Display save message */}
-              {saveMessage && (
-                <div className={`mt-4 p-2 rounded text-sm ${saveError ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'}`}>
-                  {saveMessage}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-gray-800">
-              <h2 className="text-xl font-semibold text-white">Data Privacy</h2>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-start gap-2">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5" />
-                  <div>
-                    <div className="text-sm font-medium text-white">Privacy mode</div>
-                    <div className="text-xs text-gray-400">(enforced across all seats)</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5" />
-                  <div>
-                    <div className="text-sm font-medium text-white">OpenAI Zero-data-retention</div>
-                    <div className="text-xs text-gray-400">(approved)</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-5 w-5 text-green-500 mt-0.5" />
-                  <div>
-                    <div className="text-sm font-medium text-white">Anthropic Zero-data-retention</div>
-                    <div className="text-xs text-gray-400">(approved)</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-gray-800">
-              <h2 className="text-xl font-semibold text-white">Support</h2>
-              <div className="mt-2 text-sm text-zinc-300">
-                For support, please contact the BlenderBin team via email at help@blenderbin.com
-              </div>
-            </div>
-          </div>
-
+        <div className="mt-10">
           <div className="bg-zinc-900/30 border border-zinc-800 rounded-xl shadow-xl backdrop-blur-sm">
             <Tabs defaultValue="team" className="w-full">
               <div className="border-b border-zinc-800">

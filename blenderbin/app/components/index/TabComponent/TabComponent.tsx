@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
 import InfiniteScroll from './InfiniteScroll/InfiniteScroll';
 import TiltedCard from './TiltedCard/TiltedCard';
-import './TabComponent.css';
 
 interface S3Files {
   premium: string[];
@@ -55,43 +54,46 @@ const TabComponent: React.FC = () => {
     fetchS3Files();
   }, []);
 
-  const getDisplayName = (filename: string) => {
+  const getDisplayName = useCallback((filename: string) => {
     return filename
       .replace(/\.[^/.]+$/, '')
       .replace(/[_-]/g, ' ')
       .toUpperCase();
-  };
+  }, []);
 
-  const getIconUrl = (filename: string) => {
+  const getIconUrl = useCallback((filename: string) => {
     const baseName = filename.replace(/\.[^/.]+$/, '');
     return s3Files.icons[baseName] || null;
-  };
+  }, [s3Files.icons]);
 
-  // Create combined items array for the infinite scroll
-  const scrollItems = [...s3Files.free, ...s3Files.premium].map(filename => ({
+  // Memoize scroll items for performance
+  const scrollItems = useMemo(() => 
+    [...s3Files.free, ...s3Files.premium].map(filename => ({
     content: (
-      <div className="button-wrapper">
-        <div className="addon-link-container">
+        <div className="flex items-center rounded-xl border border-zinc-800/50 bg-zinc-900/30 p-3 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:bg-zinc-800/40 hover:scale-105">
+          <div className="flex items-center gap-3">
           {getIconUrl(filename) && (
-            <div className="addon-icon-wrapper">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5">
               <Image
                 src={getIconUrl(filename)!}
                 alt={`${getDisplayName(filename)} icon`}
-                width={24}
-                height={24}
+                  width={20}
+                  height={20}
+                  className="opacity-90"
               />
             </div>
           )}
           <Link
             href={`/library/${encodeURIComponent(filename)}`}
-            className="navbar-link"
+              className="text-sm font-medium text-zinc-300 hover:text-white transition-colors"
           >
             {getDisplayName(filename)}
           </Link>
         </div>
       </div>
     )
-  }));
+    })), [s3Files.free, s3Files.premium, getIconUrl, getDisplayName]
+  );
 
   const sections: Section[] = [
     {
@@ -115,13 +117,15 @@ const TabComponent: React.FC = () => {
     },
   ];
 
-  const renderSectionContent = (section: Section) => {
+  const renderSectionContent = useCallback((section: Section) => {
     switch (section.type) {
       case "scroll":
         return (
-          <div className="content-container">
+          <div className="relative h-[400px] w-full overflow-hidden rounded-2xl border border-zinc-800/50 bg-zinc-900/20 backdrop-blur-sm">
             {loading ? (
-              <div>Loading...</div>
+              <div className="flex h-full items-center justify-center">
+                <div className="text-zinc-400">Loading...</div>
+              </div>
             ) : (
               <InfiniteScroll
                 items={scrollItems}
@@ -137,18 +141,13 @@ const TabComponent: React.FC = () => {
         );
       case "video":
         return (
-          <div className="content-container">
+          <div className="relative w-full overflow-hidden rounded-2xl border border-zinc-800/50 bg-zinc-900/20 backdrop-blur-sm p-6">
             <video
               autoPlay
               loop
               muted
               playsInline
-              className="section-video"
-              style={{
-                width: '100%',
-                height: 'auto',
-                objectFit: 'contain'
-              }}
+              className="h-auto w-full rounded-xl"
               onError={(e) => {
                 console.error('Video error:', e);
               }}
@@ -166,7 +165,7 @@ const TabComponent: React.FC = () => {
         );
       case "tiltedCard":
         return (
-          <div className="content-container">
+          <div className="relative h-[400px] w-full overflow-hidden rounded-2xl border border-zinc-800/50 bg-zinc-900/20 backdrop-blur-sm">
             <TiltedCard
               imageSrc={section.imagePath}
               altText={section.title}
@@ -180,24 +179,62 @@ const TabComponent: React.FC = () => {
           </div>
         );
       default:
-        return <div className="content-container" />;
+        return <div className="h-[400px] w-full rounded-2xl border border-zinc-800/50 bg-zinc-900/20 backdrop-blur-sm" />;
     }
-  };
+  }, [loading, scrollItems]);
 
   return (
-    <div className="tab-container">
-      <div className="sections-container">
+    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-24">
+      {/* Content container - Apple-like centered layout */}
+      <div className="relative mx-auto max-w-6xl">
+        
+        {/* Main header */}
+        <div className="text-center mb-20">
+          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl mb-6">
+            Built for
+            <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              creators.
+            </span>
+          </h1>
+          <p className="text-lg leading-relaxed text-zinc-300 md:text-xl max-w-2xl mx-auto">
+            Everything you need to streamline your Blender workflow, packaged in one beautiful subscription.
+          </p>
+        </div>
+
+        {/* Features grid */}
+        <div className="space-y-24">
         {sections.map((section, index) => (
-          <div key={index} className="section-wrapper">
-            <div className="section-header">
-              <h1 className="section-title">{section.title}</h1>
-              <p className="section-description">{section.description}</p>
+            <div key={index} className="relative">
+              {/* Individual feature card */}
+              <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 md:p-12 backdrop-blur-sm shadow-2xl">
+                
+                {/* Feature header */}
+                <div className="text-center mb-12">
+                  <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl mb-4">
+                    {section.title}
+                  </h2>
+                  <p className="text-lg leading-relaxed text-zinc-300 max-w-2xl mx-auto">
+                    {section.description}
+                  </p>
             </div>
+
+                {/* Feature content */}
+                <div className="mx-auto max-w-4xl">
             {renderSectionContent(section)}
+                </div>
+              </div>
           </div>
         ))}
+        </div>
+
+        {/* Subtle background elements */}
+        <div className="absolute inset-0 -z-10">
+          {/* Gradient orbs */}
+          <div className="absolute top-1/3 left-1/4 h-96 w-96 rounded-full bg-blue-500/5 blur-3xl" />
+          <div className="absolute bottom-1/3 right-1/4 h-96 w-96 rounded-full bg-purple-500/5 blur-3xl" />
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 

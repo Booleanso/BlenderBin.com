@@ -32,10 +32,10 @@ async function getDefaultProfileImage() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { email: string } }
+  { params }: { params: Promise<{ email: string }> }
 ) {
   try {
-    const email = params.email;
+    const { email } = await params;
     
     if (!email) {
       // Return default profile image if no email is provided

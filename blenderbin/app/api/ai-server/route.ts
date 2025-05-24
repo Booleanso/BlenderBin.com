@@ -5,6 +5,7 @@ import { promisify } from 'util';
 // Add Firebase Admin SDK imports
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { verifyFirebaseToken } from '../server/http/shared';
 
 // Initialize Firebase Admin if not already initialized
 if (!getApps().length) {
@@ -973,7 +974,7 @@ When asked to write code, follow these guidelines:
 8. Use hasattr(obj, 'attribute_name') to check if attributes exist before using them
 9. Make sure when using Geometry Nodes, you are using the correct node type for the operation you want to perform.
 10. Make sure when using the Set Position node, you are using the correct axis for the operation you want to perform.
-11. Make sure you properly connect all nodes in your geometry nodes network.
+11. Make sure you properly connect all nodes in your geometry nodes network if you are using geometry nodes.
 
 IMPORTANT CONSTRAINTS:
 - Use ONLY the built-in Blender Python API modules: bpy, bmesh, mathutils
@@ -1655,11 +1656,49 @@ export async function POST(req: NextRequest) {
     
     if (auth && auth.token) {
       try {
-        // Here you would normally verify the token with Firebase Admin SDK
-        // For simplicity in this demo, we're just checking for existence
-        console.log(`Request includes authentication token`);
+        console.log(`Request includes authentication token, verifying...`);
+        
+        // CRITICAL: Properly verify the Firebase token and check subscription
+        const decodedToken = await verifyFirebaseToken(auth.token);
+        
+        // Check if user has valid subscription (including trial)
+        if (!decodedToken.has_subscription) {
+          console.log(`AI access denied for user ${decodedToken.uid}: No valid subscription`);
+          
+          // Provide specific messaging based on subscription status
+          let errorMessage = "AI features require an active subscription.";
+          let redirectUrl = "/pricing";
+          
+          // If user has BlenderBin but not Gizmo, suggest Gizmo
+          if (decodedToken.has_blenderbin_subscription && !decodedToken.has_gizmo_subscription) {
+            errorMessage = "AI features are included with BlenderBin subscriptions.";
+            redirectUrl = "/pricing/blenderbin";
+          } 
+          // If user has neither, suggest either product
+          else {
+            errorMessage = "AI features require a BlenderBin subscription (includes AI) or Gizmo AI subscription.";
+            redirectUrl = "/pricing";
+          }
+          
+          return NextResponse.json({ 
+            success: false, 
+            error: errorMessage,
+            redirectUrl: redirectUrl,
+            type: "subscription_required",
+            debug: {
+              hasBlenderBin: decodedToken.has_blenderbin_subscription || false,
+              hasGizmo: decodedToken.has_gizmo_subscription || false,
+              hasAnySubscription: decodedToken.has_subscription || false
+            }
+          }, { status: 403 });
+        }
+        
+        console.log(`AI access authorized for user ${decodedToken.uid} - BlenderBin: ${decodedToken.has_blenderbin_subscription}, Gizmo: ${decodedToken.has_gizmo_subscription}`);
+        
+        // User is authenticated and has valid subscription
         isAuthenticated = true;
-        userId = auth.user_id || "";
+        userId = decodedToken.uid;
+        userEmail = decodedToken.email || "";
         
         // Extract analytics data if available
         if (auth.analytics) {
@@ -1674,10 +1713,16 @@ export async function POST(req: NextRequest) {
           console.log(`Request using usage-based pricing: ${usageBasedPricing}, beyond plan limits: ${beyondPlanLimits}`);
         }
         
-        // Get user's subscription tier
-        subscriptionTier = auth.subscription_tier || "free";
+        // Get user's subscription tier (from the token verification)
+        subscriptionTier = decodedToken.subscription_tier || "pro";
+        
       } catch (error) {
         console.error("Error verifying authentication token:", error);
+        return NextResponse.json({ 
+          success: false, 
+          error: "Invalid authentication token.",
+          type: "authentication_error"
+        }, { status: 401 });
       }
     } else {
       // Handle non-authenticated (freemium) users

@@ -19,6 +19,7 @@
     "@aws-sdk/client-ec2": "latest",
     "@aws-sdk/client-s3": "latest",
     "@aws-sdk/s3-request-presigner": "latest",
+    "@chakra-ui/react": "^3.19.1",
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@plasmicapp/loader-nextjs": "^1.0.410",
     "@radix-ui/react-dialog": "latest",

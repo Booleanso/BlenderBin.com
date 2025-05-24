@@ -1,5 +1,6 @@
 // app/api/download/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyFirebaseToken, autoInitializeFirebase } from '../server/http/shared';
 import axios from 'axios';
 
 // GitHub repository constants
@@ -7,7 +8,7 @@ const GITHUB_OWNER = "WebRendHQ";
 const GITHUB_REPO = "BlenderBin-Launcher";
 const GITHUB_VERSION_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/version.json`;
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -17,6 +18,47 @@ export async function GET(request: Request) {
     if (!userId && !sessionId) {
       return NextResponse.json(
         { error: 'Authentication required. Please sign in or provide a valid session.' },
+        { status: 401 }
+      );
+    }
+
+    // Verify authentication token if provided
+    const authHeader = request.headers.get('Authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Authentication token required for BlenderBin download.' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    // Add debugging to see what we're working with
+    console.log('Received token (first 50 chars):', token.substring(0, 50) + '...');
+    console.log('Token length:', token.length);
+    
+    try {
+      // Initialize Firebase before token verification
+      console.log('Ensuring Firebase is initialized...');
+      const firebaseInitialized = await autoInitializeFirebase();
+      if (!firebaseInitialized) {
+        console.error('Failed to initialize Firebase');
+        return NextResponse.json(
+          { error: 'Service temporarily unavailable. Please try again later.' },
+          { status: 503 }
+        );
+      }
+      
+      // Verify token (but don't require subscription for freemium model)
+      const decodedToken = await verifyFirebaseToken(token);
+      console.log(`Download authorized for user ${decodedToken.uid} (freemium access)`);
+      
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      console.error('Token being verified (first 50 chars):', token.substring(0, 50) + '...');
+      return NextResponse.json(
+        { error: 'Invalid authentication token.' },
         { status: 401 }
       );
     }

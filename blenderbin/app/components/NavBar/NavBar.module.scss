@@ -76,14 +76,25 @@
         transition: all 0.2s ease;
         background: rgba(255, 255, 255, 0.1);
         
+        &:hover {
+          border-color: rgba(255, 255, 255, 0.3);
+          transform: scale(1.05);
+        }
+
+        .profilePicContainer {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          
         img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
-
-        &:hover {
-          border-color: rgba(255, 255, 255, 0.2);
         }
       }
   

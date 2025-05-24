@@ -2,24 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { auth } from '../lib/firebase-client';
-import { motion } from 'framer-motion';
 
 // Icons
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight, Box, Bot } from 'lucide-react';
 
 // Components
 import { Button } from '../../components/ui/button';
+import WaitlistOverlay from '../components/WaitlistOverlay';
+import { isWaitlistEnabled } from '../utils/waitlist';
 
 export default function PricingPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -30,356 +27,239 @@ export default function PricingPage() {
     return () => unsubscribe();
   }, []);
 
-  const handleSubscription = async (priceId: string) => {
-    if (!user) {
-      // Redirect to signup if no user
-      router.push('/signup');
-      return;
-    }
-
-    try {
-      setIsCheckingOut(true);
-      setCheckoutError(null);
-
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          priceId: priceId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      // Redirect to Stripe Checkout
-      window.location.href = `https://checkout.stripe.com/c/pay/${data.sessionId}`;
-    } catch (error) {
-      console.error('Checkout error:', error);
-      setCheckoutError((error as Error).message);
-    } finally {
-      setIsCheckingOut(false);
-    }
-  };
-
-  // Pricing data based on Cursor's model
-  const pricingData = {
-    monthly: {
-      pro: {
-        price: '$20',
-        priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '',
-        cycle: '/month'
-      },
-      business: {
-        price: '$40',
-        priceId: process.env.NEXT_PUBLIC_BUSINESS_STRIPE_PRICE_ID || '',
-        cycle: '/user/month'
-      }
-    },
-    yearly: {
-      pro: {
-        price: '$192',
-        priceId: process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID || '',
-        cycle: '/year'
-      },
-      business: {
-        price: '$384',
-        priceId: process.env.NEXT_PUBLIC_YEARLY_BUSINESS_STRIPE_PRICE_ID || '',
-        cycle: '/user/year'
-      }
-    }
-  };
-
   // Display loading spinner
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-white">
-        <div className="w-full max-w-md space-y-8 rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 backdrop-blur-sm">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Gizmo AI</h1>
-            <div className="mt-6 flex justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-blue-500"></div>
-            </div>
-          </div>
+      <section className="relative min-h-screen bg-black px-4 py-20">
+        <div className="flex items-center justify-center">
+          <div className="text-zinc-400">Loading...</div>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 to-black text-white pt-24 pb-12 px-4">
-      <main className="container max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-100 mb-4">Gizmo AI Pricing</h1>
-          <p className="text-lg text-zinc-400">Choose the plan that works for you</p>
+    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-24">
+      {/* Content container */}
+      <div className="relative mx-auto max-w-6xl">
+        
+        {/* Header */}
+        <div className="text-center mb-20">
+          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl mb-6">
+            Choose your
+            <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              product.
+            </span>
+          </h1>
+          <p className="text-lg leading-relaxed text-zinc-300 max-w-2xl mx-auto">
+            Select the pricing for the product you're interested in
+          </p>
         </div>
 
-        {/* Billing toggle */}
-        <div className="flex justify-center mb-12">
-          <div className="bg-zinc-900/50 border border-zinc-800 inline-flex p-1 rounded-lg backdrop-blur-sm">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`px-4 py-2 rounded-md font-medium transition-all ${
-                billingCycle === 'monthly' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBillingCycle('yearly')}
-              className={`px-4 py-2 rounded-md font-medium transition-all flex items-center gap-2 ${
-                billingCycle === 'yearly' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
-              }`}
-            >
-              Yearly <span className="text-xs bg-orange-900/60 text-orange-400 px-1.5 py-0.5 rounded">Save 20%</span>
-            </button>
+        {/* Product Selection Cards */}
+        <div className="grid gap-12 md:grid-cols-2 max-w-5xl mx-auto mb-24">
+          
+          {/* BlenderBin Card */}
+          <div 
+            className="group rounded-3xl border border-blue-800/50 bg-gradient-to-br from-blue-900/20 to-blue-800/10 p-8 md:p-12 backdrop-blur-sm transition-all duration-200 hover:border-blue-700/50 hover:scale-[1.02] cursor-pointer"
+            onClick={() => router.push('/pricing/blenderbin')}
+          >
+            <div className="flex items-center mb-8">
+              <div className="p-4 rounded-2xl bg-blue-500/20 mr-6 border border-blue-500/30">
+                <Box className="h-8 w-8 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-semibold text-white mb-2">BlenderBin</h2>
+                <p className="text-zinc-300">Blender Add-ons Collection</p>
           </div>
         </div>
 
-        {/* Pricing cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          {/* Hobby (Free) plan */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 backdrop-blur-sm flex flex-col shadow-xl">
-            <h2 className="text-lg font-medium mb-2 text-zinc-100">Hobby</h2>
-            <div className="text-4xl font-bold mb-4 text-white">Free</div>
-            <div className="h-px bg-zinc-800 mb-6"></div>
+            <div className="h-px bg-zinc-800/50 mb-8"></div>
             
-            <h3 className="font-medium mb-4 text-zinc-300">Includes</h3>
-            <ul className="mb-8 space-y-3 flex-1">
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Pro two-week trial</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>2000 completions</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>50 slow requests</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Gizmo AI Assistant</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>20 AI queries/day</span>
-              </li>
-            </ul>
-
-            <div className="mt-auto space-y-3">
-              <Link href="/download" className="w-full">
-                <Button
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800/50 shadow-sm text-sm font-medium text-zinc-300 hover:bg-zinc-800"
-                >
-                  Download
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Pro plan */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 backdrop-blur-sm flex flex-col shadow-xl relative overflow-hidden">
-            {/* Pro badge */}
-            <div className="absolute -right-12 top-6 bg-blue-600 text-white px-12 py-1 transform rotate-45 text-sm font-semibold shadow-lg">
-              RECOMMENDED
-            </div>
-            
-            <h2 className="text-lg font-medium mb-2 text-zinc-100">Pro</h2>
-            <div className="flex items-baseline gap-1">
-              <div className="text-4xl font-bold text-white">{pricingData[billingCycle].pro.price}</div>
-              <div className="text-zinc-400">{pricingData[billingCycle].pro.cycle}</div>
-            </div>
-            <div className="h-px bg-zinc-800 my-6"></div>
-            
-            <h3 className="font-medium mb-4 text-zinc-300">Everything in Hobby, plus</h3>
-            <ul className="mb-8 space-y-3 flex-1">
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Unlimited completions</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>500 requests per month</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Unlimited slow requests</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Max mode</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Gizmo AI Priority</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>200 AI queries/day</span>
-              </li>
-            </ul>
-
-            <div className="mt-auto">
-              <Button
-                className="w-full group relative flex justify-center rounded-md bg-blue-600 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50"
-                onClick={() => handleSubscription(pricingData[billingCycle].pro.priceId)}
-                disabled={isCheckingOut}
-              >
-                {isCheckingOut ? (
-                  <span className="flex items-center">
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Processing...
-                  </span>
-                ) : (
-                  'Get Started'
-                )}
-              </Button>
-              {checkoutError && (
-                <div className="mt-4 rounded-md bg-red-900/20 p-3 text-sm text-red-400">
-                  <div className="flex">
-                    <svg className="mr-2 h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <span>{checkoutError}</span>
+            <div className="mb-8">
+              <p className="text-zinc-300 mb-6 leading-relaxed">
+                Access our complete collection of professional Blender add-ons with a 7-day free trial.
+              </p>
+              
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-blue-400" />
                   </div>
-                </div>
-              )}
+                  <span className="text-sm">Full access to all Blender add-ons</span>
+              </li>
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-blue-400" />
+                  </div>
+                  <span className="text-sm">7-day free trial</span>
+              </li>
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-blue-400" />
+                  </div>
+                  <span className="text-sm">Weekly updates and new add-ons</span>
+              </li>
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-blue-400" />
+                  </div>
+                  <span className="text-sm">Custom add-on requests</span>
+              </li>
+            </ul>
+            </div>
+
+            <div className="text-center">
+              <div className="text-3xl font-bold text-white mb-4">Starting at $14/month</div>
+              <button className="w-full rounded-full py-3 px-6 font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2">
+                View BlenderBin Pricing <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
-          {/* Business plan */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 backdrop-blur-sm flex flex-col shadow-xl">
-            <h2 className="text-lg font-medium mb-2 text-zinc-100">Business</h2>
-            <div className="flex items-baseline gap-1">
-              <div className="text-4xl font-bold text-white">{pricingData[billingCycle].business.price}</div>
-              <div className="text-zinc-400">{pricingData[billingCycle].business.cycle}</div>
+          {/* Gizmo AI Card */}
+          <div 
+            className="group rounded-3xl border border-purple-800/50 bg-gradient-to-br from-purple-900/20 to-purple-800/10 p-8 md:p-12 backdrop-blur-sm transition-all duration-200 hover:border-purple-700/50 hover:scale-[1.02] cursor-pointer"
+            onClick={() => router.push('/pricing/gizmo')}
+          >
+            <div className="flex items-center mb-8">
+              <div className="p-4 rounded-2xl bg-purple-500/20 mr-6 border border-purple-500/30">
+                <Bot className="h-8 w-8 text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-semibold text-white mb-2">Gizmo AI</h2>
+                <p className="text-zinc-300">AI-Powered Blender Assistant</p>
+              </div>
             </div>
-            <div className="h-px bg-zinc-800 my-6"></div>
             
-            <h3 className="font-medium mb-4 text-zinc-300">Everything in Pro, plus</h3>
-            <ul className="mb-8 space-y-3 flex-1">
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Enforce privacy mode org-wide</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Centralized team billing</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Admin dashboard with usage stats</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>SAML/OIDC SSO</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Priority support</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-300">
-                <Check className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                <span>Unlimited AI queries</span>
-              </li>
-            </ul>
-
-            <div className="mt-auto">
-              <Button
-                className="w-full group relative flex justify-center rounded-md bg-blue-600 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50"
-                onClick={() => handleSubscription(pricingData[billingCycle].business.priceId)}
-                disabled={isCheckingOut}
-              >
-                {isCheckingOut ? (
-                  <span className="flex items-center">
-                    <svg className="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Processing...
-                  </span>
-                ) : (
-                  'Get Started'
-                )}
-              </Button>
-              {checkoutError && (
-                <div className="mt-4 rounded-md bg-red-900/20 p-3 text-sm text-red-400">
-                  <div className="flex">
-                    <svg className="mr-2 h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <span>{checkoutError}</span>
+            <div className="h-px bg-zinc-800/50 mb-8"></div>
+            
+            <div className="mb-8">
+              <p className="text-zinc-300 mb-6 leading-relaxed">
+                Enhance your Blender workflow with AI-powered assistance and intelligent automation.
+              </p>
+              
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-purple-400" />
                   </div>
+                  <span className="text-sm">AI-powered Blender assistant</span>
+              </li>
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-purple-400" />
+                  </div>
+                  <span className="text-sm">Intelligent code completion</span>
+              </li>
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-purple-400" />
+                  </div>
+                  <span className="text-sm">Advanced AI queries</span>
+              </li>
+                <li className="flex items-center gap-3 text-zinc-300">
+                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-purple-400" />
+                  </div>
+                  <span className="text-sm">Priority support</span>
+                </li>
+              </ul>
                 </div>
-              )}
+
+            <div className="text-center">
+              <div className="text-3xl font-bold text-white mb-4">Starting at $20/month</div>
+              <button className="w-full rounded-full py-3 px-6 font-medium bg-purple-600 text-white hover:bg-purple-700 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2">
+                View Gizmo AI Pricing <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+            </div>
+          </div>
+
+        {/* Feature Comparison Section */}
+        <div className="mb-20">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-semibold tracking-tight text-white mb-4">
+              Product Comparison
+            </h2>
+            </div>
+          
+          <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 backdrop-blur-sm overflow-hidden max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800/50">
+              {/* Features Column */}
+              <div className="p-8">
+                <h3 className="font-semibold text-zinc-100 mb-6 text-lg">Features</h3>
+                <div className="space-y-4 text-zinc-300">
+                  <div className="py-2">Blender Add-ons</div>
+                  <div className="py-2">Free Trial</div>
+                  <div className="py-2">AI Assistant</div>
+                  <div className="py-2">Custom Requests</div>
+                  <div className="py-2">Weekly Updates</div>
+                  <div className="py-2">Priority Support</div>
+                  <div className="py-2">Team Features</div>
+                </div>
+              </div>
+              
+              {/* BlenderBin Column */}
+              <div className="p-8">
+                <h3 className="font-semibold text-zinc-100 mb-6 flex items-center text-lg">
+                  <Box className="h-5 w-5 text-blue-400 mr-2" />
+                  BlenderBin
+                </h3>
+                <div className="space-y-4">
+                  <div className="py-2 text-green-400 font-medium">✓ Full Collection</div>
+                  <div className="py-2 text-green-400 font-medium">✓ 7 Days</div>
+                  <div className="py-2 text-zinc-500">✗ Not Included</div>
+                  <div className="py-2 text-green-400 font-medium">✓ Included</div>
+                  <div className="py-2 text-green-400 font-medium">✓ Weekly</div>
+                  <div className="py-2 text-zinc-300">Standard</div>
+                  <div className="py-2 text-zinc-500">✗ Individual</div>
+                </div>
+                  </div>
+
+              {/* Gizmo AI Column */}
+              <div className="p-8">
+                <h3 className="font-semibold text-zinc-100 mb-6 flex items-center text-lg">
+                  <Bot className="h-5 w-5 text-purple-400 mr-2" />
+                  Gizmo AI
+                </h3>
+                <div className="space-y-4">
+                  <div className="py-2 text-zinc-500">✗ Not Included</div>
+                  <div className="py-2 text-green-400 font-medium">✓ 14 Days</div>
+                  <div className="py-2 text-green-400 font-medium">✓ Advanced AI</div>
+                  <div className="py-2 text-zinc-500">✗ Not Included</div>
+                  <div className="py-2 text-green-400 font-medium">✓ AI Updates</div>
+                  <div className="py-2 text-green-400 font-medium">✓ Priority</div>
+                  <div className="py-2 text-green-400 font-medium">✓ Team Plans</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Enterprise section */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-8 backdrop-blur-sm shadow-xl text-center mb-16 max-w-3xl mx-auto">
-          <h3 className="text-xl font-semibold mb-4 text-zinc-100">Need a custom solution?</h3>
-          <p className="mb-6 text-zinc-300">
-            Questions about enterprise security, procurement, or custom contracts?
+        {/* Contact section */}
+        <div className="text-center">
+          <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 md:p-12 backdrop-blur-sm max-w-2xl mx-auto">
+            <h3 className="text-2xl font-semibold mb-4 text-white">Need help choosing?</h3>
+            <p className="mb-8 text-zinc-300 leading-relaxed">
+              Have questions about our products or need help selecting the right plan for your needs?
           </p>
           <Link 
             href="mailto:help@blenderbin.com" 
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-800/50 px-5 py-2.5 text-sm font-medium text-zinc-300 shadow-sm transition-colors hover:bg-zinc-700 focus:outline-none"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-700/50 bg-zinc-800/50 px-6 py-3 font-medium text-zinc-300 backdrop-blur-sm transition-all duration-200 hover:bg-zinc-700/50 hover:scale-105"
           >
             Contact Sales <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
+            </div>
 
-        {/* Trusted by section */}
-        <div className="mt-24">
-          <p className="text-center text-gray-500 text-sm uppercase tracking-widest mb-10">
-            TRUSTED BY ENGINEERS AT
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-8 grayscale opacity-50">
-            <div className="flex items-center justify-center">
-              <Image src="/johnson-johnson-logo.svg" alt="Johnson & Johnson" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/openai-logo.svg" alt="OpenAI" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/stripe-logo.svg" alt="Stripe" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/samsung-logo.svg" alt="Samsung" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/instacart-logo.svg" alt="Instacart" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/perplexity-logo.svg" alt="Perplexity" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/ramp-logo.svg" alt="Ramp" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/shopify-logo.svg" alt="Shopify" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/us-foods-logo.svg" alt="US Foods" width={160} height={50} />
-            </div>
-            <div className="flex items-center justify-center">
-              <Image src="/mercado-libre-logo.svg" alt="Mercado Libre" width={160} height={50} />
-            </div>
-          </div>
+        {/* Subtle background elements */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute top-1/4 left-0 h-96 w-96 rounded-full bg-blue-500/3 blur-3xl" />
+          <div className="absolute top-1/2 right-0 h-96 w-96 rounded-full bg-purple-500/3 blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/3 h-96 w-96 rounded-full bg-emerald-500/3 blur-3xl" />
         </div>
-      </main>
     </div>
+    </section>
   );
 } 

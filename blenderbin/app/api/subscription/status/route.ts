@@ -2,6 +2,16 @@
 import { NextResponse } from 'next/server';
 import { db } from '../../../lib/firebase-admin';
 
+// BlenderBin price IDs to include in BlenderBin subscription checks
+const BLENDERBIN_PRICE_IDS = [
+  // BlenderBin Production Price IDs
+  process.env.NEXT_PUBLIC_STRIPE_PRICE_ID, // Monthly
+  process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID, // Yearly
+  // BlenderBin Test Price IDs
+  process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID, // Test Monthly
+  process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID, // Test Yearly
+].filter(Boolean); // Remove undefined values
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const userId = url.searchParams.get('userId');
@@ -14,84 +24,179 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Check the customers collection where the extension stores subscription data
+    console.log(`Checking BlenderBin subscription status for user: ${userId}`);
+    
+    // Check the customers collection where subscription data is stored
     const customerDoc = await db.collection('customers').doc(userId).get();
     
     if (!customerDoc.exists) {
-      return NextResponse.json({ isSubscribed: false });
+      console.log(`No customer document found for user: ${userId}`);
+      return NextResponse.json({ 
+        isSubscribed: false,
+        status: 'none',
+        subscriptionId: null,
+        priceId: null
+      });
     }
 
-    // Look for subscriptions with active or trialing status
+    // Look for active subscriptions (including trialing) - removed orderBy to avoid index issues
     const subscriptionsSnapshot = await db
       .collection('customers')
       .doc(userId)
       .collection('subscriptions')
       .where('status', 'in', ['active', 'trialing'])
+      .limit(10) // Get more to filter through
       .get();
 
-    // Check for placeholder documents with status field set to "trialing"
-    const placeholderSnapshot = await db
-      .collection('customers')
-      .doc(userId)
-      .collection('subscriptions')
-      .where('status', '==', 'trialing')
-      .get();
+    console.log(`Found ${subscriptionsSnapshot.size} potential subscriptions for user: ${userId}`);
 
-    // If we don't have active or trialing subscriptions in either query
-    if (subscriptionsSnapshot.empty && placeholderSnapshot.empty) {
-      return NextResponse.json({ isSubscribed: false });
+    // If no active subscriptions found
+    if (subscriptionsSnapshot.empty) {
+      console.log(`No active subscriptions found for user: ${userId}`);
+      return NextResponse.json({ 
+        isSubscribed: false,
+        status: 'none',
+        subscriptionId: null,
+        priceId: null
+      });
     }
 
-    // Prioritize the regular subscription records
-    let subscription;
-    let isTrialOnly = false;
-    
-    if (!subscriptionsSnapshot.empty) {
-      subscription = subscriptionsSnapshot.docs[0].data();
-    } else if (!placeholderSnapshot.empty) {
-      subscription = placeholderSnapshot.docs[0].data();
-      isTrialOnly = true;
-    } else {
-      return NextResponse.json({ isSubscribed: false });
+    // Filter for BlenderBin subscriptions by checking price IDs
+    const blenderBinSubscriptions = subscriptionsSnapshot.docs
+      .map(doc => ({ id: doc.id, data: doc.data(), ref: doc.ref }))
+      .filter(sub => {
+        // Include only BlenderBin subscriptions by checking price IDs
+        if (sub.data.items && sub.data.items.length > 0) {
+          return sub.data.items.some((item: any) => {
+            const priceId = item.price?.id;
+            return priceId && BLENDERBIN_PRICE_IDS.includes(priceId);
+          });
+        }
+        return false; // Exclude if no items or price info
+      })
+      .sort((a, b) => {
+        const aCreated = a.data.created?.toDate?.() || a.data.created || new Date(0);
+        const bCreated = b.data.created?.toDate?.() || b.data.created || new Date(0);
+        return new Date(bCreated).getTime() - new Date(aCreated).getTime();
+      });
+
+    if (blenderBinSubscriptions.length === 0) {
+      console.log(`No active BlenderBin subscriptions found for user: ${userId}`);
+      return NextResponse.json({ 
+        isSubscribed: false,
+        status: 'none',
+        subscriptionId: null,
+        priceId: null
+      });
     }
     
-    // Check if the subscription is set to cancel at the end of the period - safely
+    // Get the most recent BlenderBin subscription
+    const subscriptionInfo = blenderBinSubscriptions[0];
+    const subscription = subscriptionInfo.data;
+    const subscriptionId = subscriptionInfo.id;
+    
+    console.log(`Using BlenderBin subscription: ${subscriptionId}, status: ${subscription.status}`);
+    
+    // Extract subscription details
+    const status = subscription.status || 'active';
+    const isTrialing = status === 'trialing';
     const isCanceling = subscription.cancel_at_period_end === true;
     
-    // Safely determine status, default to active if not specified
-    const status = subscription.status || 'active';
-    
-    // Safely extract price ID
+    // Get price ID from subscription items
     let priceId = null;
-    if (subscription.price && typeof subscription.price === 'object' && subscription.price.id) {
-      priceId = subscription.price.id;
+    if (subscription.items && subscription.items.length > 0) {
+      priceId = subscription.items[0].price?.id || null;
     }
     
-    // Safely get current period end timestamp
+    // Get trial and billing period information
+    let trialStart = null;
+    let trialEnd = null;
+    let currentPeriodStart = null;
     let currentPeriodEnd = null;
+    
+    // Handle trial dates
+    if (subscription.trial_start) {
+      trialStart = subscription.trial_start.toDate ? 
+        subscription.trial_start.toDate().toISOString() : 
+        subscription.trial_start.toISOString();
+    }
+    
+    if (subscription.trial_end) {
+      trialEnd = subscription.trial_end.toDate ? 
+        subscription.trial_end.toDate().toISOString() : 
+        subscription.trial_end.toISOString();
+    }
+    
+    // Handle billing period dates
+    if (subscription.current_period_start) {
+      currentPeriodStart = subscription.current_period_start.toDate ? 
+        subscription.current_period_start.toDate().toISOString() : 
+        subscription.current_period_start.toISOString();
+    }
+    
     if (subscription.current_period_end) {
-      if (typeof subscription.current_period_end === 'object' && subscription.current_period_end._seconds) {
-        currentPeriodEnd = new Date(subscription.current_period_end._seconds * 1000).toISOString();
-      } else if (subscription.current_period_end instanceof Date) {
-        currentPeriodEnd = subscription.current_period_end.toISOString();
-      } else if (typeof subscription.current_period_end === 'string') {
-        currentPeriodEnd = subscription.current_period_end;
+      currentPeriodEnd = subscription.current_period_end.toDate ? 
+        subscription.current_period_end.toDate().toISOString() : 
+        subscription.current_period_end.toISOString();
+    }
+    
+    // For trialing subscriptions, use trial_end as the current period end
+    const effectivePeriodEnd = isTrialing && trialEnd ? trialEnd : currentPeriodEnd;
+    
+    // Calculate days remaining in trial
+    let trialDaysRemaining = null;
+    if (isTrialing && trialEnd) {
+      const trialEndDate = new Date(trialEnd);
+      const now = new Date();
+      const diffTime = trialEndDate.getTime() - now.getTime();
+      trialDaysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Ensure we don't show negative days
+      if (trialDaysRemaining < 0) {
+        trialDaysRemaining = 0;
       }
     }
     
-    return NextResponse.json({
+    const response = {
       isSubscribed: true,
-      priceId: priceId,
-      subscriptionId: subscription.id || 'placeholder',
+      subscriptionId: subscriptionId,
       status: status,
+      priceId: priceId,
       cancelAtPeriodEnd: isCanceling,
-      currentPeriodEnd: currentPeriodEnd,
-      isTrialOnly: isTrialOnly
+      currentPeriodStart: currentPeriodStart,
+      currentPeriodEnd: effectivePeriodEnd,
+      isTrialing: isTrialing,
+      trialStart: trialStart,
+      trialEnd: trialEnd,
+      trialDaysRemaining: trialDaysRemaining,
+      stripeLink: subscription.stripeLink || null,
+      hasPremiumAccess: status === 'trialing' || status === 'active'
+    };
+    
+    console.log(`BlenderBin subscription status response for user ${userId}:`, {
+      subscriptionId,
+      status,
+      isTrialing,
+      trialDaysRemaining
     });
+    
+    return NextResponse.json(response);
+    
   } catch (error) {
-    console.error('Error checking subscription status:', error);
+    console.error('Error checking BlenderBin subscription status for user', userId, ':', error);
+    
+    // Return a more detailed error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    
+    console.error('Error details:', { message: errorMessage, stack: errorStack });
+    
     return NextResponse.json(
-      { error: 'Failed to check subscription status' },
+      { 
+        error: 'Failed to check BlenderBin subscription status',
+        details: errorMessage,
+        userId: userId
+      },
       { status: 500 }
     );
   }

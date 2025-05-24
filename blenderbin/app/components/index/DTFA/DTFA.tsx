@@ -1,42 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-
-interface Position {
-  x: number;
-  y: number;
-}
+import React from "react";
 
 const DTFA = (): React.ReactElement => {
-  const [position1, setPosition1] = useState<Position>({ x: 25, y: 25 });
-  const [position2, setPosition2] = useState<Position>({ x: 75, y: 75 });
-
-  useEffect(() => {
-    let frame: number;
-    let angle1 = 0;
-    let angle2 = Math.PI;
-
-    const animate = () => {
-      angle1 += 0.002;
-      angle2 += 0.003;
-
-      setPosition1({
-        x: 50 + Math.cos(angle1) * 25,
-        y: 50 + Math.sin(angle1) * 25,
-      });
-
-      setPosition2({
-        x: 50 + Math.cos(angle2) * 25,
-        y: 50 + Math.sin(angle2) * 25,
-      });
-
-      frame = requestAnimationFrame(animate);
-    };
-
-    animate();
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
   const creators = [
     "@MARV.OS",
     "@THEDIZZYVIPER",
@@ -51,85 +17,99 @@ const DTFA = (): React.ReactElement => {
     "@DAVIDHLT",
   ];
 
+  const scrollToSubscriptions = () => {
+    const subscriptionsSection = document.getElementById('subscriptions');
+    subscriptionsSection?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <section className="relative min-h-25vh overflow-hidden bg-black px-4 py-16 text-white">
-      {/* Grid background */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="grid h-full w-full grid-cols-12 gap-4">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="h-full border-l border-gray-700" />
-          ))}
+    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-24">
+      {/* Content container - Apple-like centered layout */}
+      <div className="relative mx-auto max-w-4xl">
+        
+        {/* Main content card */}
+        <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-12 backdrop-blur-sm shadow-2xl md:p-16">
+          
+          {/* Logo section */}
+          <div className="mb-8 text-center">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+              <span className="text-2xl font-bold text-white">b</span>
         </div>
       </div>
 
-      {/* Content container */}
-      <div className="relative mx-auto max-w-7xl space-y-8 text-center">
-        {/* Logo */}
-        <div className="mb-12">
-          <div className="inline-block text-4xl font-bold">b</div>
+          {/* Main heading */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl">
+              Designed to fix
+              <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                annoyances.
+              </span>
+            </h1>
         </div>
 
-        {/* Heading */}
-        <h1 className="mb-6 text-5xl font-bold md:text-6xl">
-          Designed to fix annoyances.
-        </h1>
-
         {/* Description */}
-        <p className="mx-auto mb-8 max-w-3xl text-lg text-gray-300 md:text-xl">
-          The creators for BlenderBin thought of an idea, to bring together a
-          plugin marketplace that focuses on easy plugins that everyone needs, but
-          no one wants to pay for individually. So, we introduced a subscription
-          model.
+          <div className="mx-auto max-w-2xl text-center mb-10">
+            <p className="text-lg leading-relaxed text-zinc-300 md:text-xl">
+              The creators for BlenderBin thought of an idea, to bring together a plugin marketplace that focuses on 
+              <span className="text-white font-medium"> easy plugins that everyone needs</span>, but no one wants to pay for individually.
+            </p>
+            <p className="mt-4 text-lg leading-relaxed text-zinc-400">
+              So, we introduced a subscription model.
         </p>
+          </div>
 
         {/* CTA Button */}
+          <div className="text-center mb-16">
         <button 
-          onClick={() => {
-            const subscriptionsSection = document.getElementById('subscriptions');
-            subscriptionsSection?.scrollIntoView({ behavior: 'smooth' });
-          }}
-          className="rounded-full bg-white/10 px-8 py-3 text-white backdrop-blur-sm transition-all hover:bg-white/20"
+              onClick={scrollToSubscriptions}
+              className="group inline-flex items-center rounded-full bg-white/10 px-8 py-4 text-base font-medium text-white backdrop-blur-sm border border-white/20 transition-all duration-200 hover:bg-white/20 hover:border-white/30 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-black"
         >
           See Subscriptions
-        </button>
-
-        {/* Creators list */}
-        <div className="mt-16 border-t border-gray-800 pt-8">
-          <h3 className="mb-6 text-xl font-bold text-gray-300">
-            Inspired by these talented artists and more.
-          </h3>
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
-            {creators.map((creator) => (
-              <span
-                key={creator}
-                className="cursor-pointer transition-colors hover:text-gray-300"
+              <svg 
+                className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
               >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+        </button>
+          </div>
+
+          {/* Creators section */}
+          <div className="border-t border-zinc-800/50 pt-12">
+            <div className="text-center mb-8">
+              <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">
+                Inspired by these talented artists and more
+          </h3>
+            </div>
+            
+            {/* Creators grid */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+              {creators.map((creator, index) => (
+                <div
+                key={creator}
+                  className="group rounded-xl border border-zinc-800/50 bg-zinc-900/30 p-4 text-center backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:bg-zinc-800/40 hover:scale-105"
+                  style={{
+                    animationDelay: `${index * 100}ms`,
+                  }}
+              >
+                  <span className="text-sm font-medium text-zinc-300 group-hover:text-white transition-colors">
                 {creator}
               </span>
+                </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Animated gradient blobs */}
-      <div
-        className="absolute h-72 w-72 rounded-full bg-purple-500/20 blur-3xl"
-        style={{
-          left: `${position1.x}%`,
-          top: `${position1.y}%`,
-          transform: "translate(-50%, -50%)",
-          transition: "all 0.5s ease-out",
-        }}
-      />
-      <div
-        className="absolute h-96 w-96 rounded-full bg-purple-500/10 blur-3xl"
-        style={{
-          left: `${position2.x}%`,
-          top: `${position2.y}%`,
-          transform: "translate(-50%, -50%)",
-          transition: "all 0.5s ease-out",
-        }}
-      />
+        {/* Subtle background elements */}
+        <div className="absolute inset-0 -z-10">
+          {/* Gradient orbs */}
+          <div className="absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-purple-500/10 blur-3xl" />
+        </div>
+      </div>
     </section>
   );
 };
