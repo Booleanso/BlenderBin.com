@@ -98,7 +98,7 @@ function SignupPageContent() {
             await sendTokenToAddon(result.user);
           } else {
             // If no session ID, this is a web authentication - redirect to dashboard
-            router.push('/dashboard');
+            router.push('/pricing');
           }
         }
         
@@ -129,7 +129,7 @@ function SignupPageContent() {
         // If no session ID and not already in the animation state, this is a web login
         else if (!sessionId && !animating) {
           console.log("Web authentication detected, redirecting to dashboard");
-          router.push('/dashboard');
+          router.push('/pricing');
         }
       }
       
@@ -215,7 +215,7 @@ function SignupPageContent() {
         
         // If no session ID, redirect to dashboard (not from Blender)
         if (!sessionId) {
-          router.push('/dashboard');
+          router.push('/pricing');
         }
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -223,7 +223,7 @@ function SignupPageContent() {
         
         // If no session ID, redirect to dashboard (not from Blender)
         if (!sessionId) {
-          router.push('/dashboard');
+          router.push('/pricing');
         }
       }
       // Auth state change will trigger sendTokenToAddon if sessionId exists
@@ -253,7 +253,7 @@ function SignupPageContent() {
           await sendTokenToAddon(result.user);
         } else {
           // If no session ID, redirect to dashboard
-          router.push('/dashboard');
+          router.push('/pricing');
         }
       } else {
         // Use redirect for production (more reliable across browsers)

@@ -50,9 +50,18 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      // Verify token (but don't require subscription for freemium model)
+      // Verify token and get user subscription info
       const decodedToken = await verifyFirebaseToken(token);
-      console.log(`Download authorized for user ${decodedToken.uid} (freemium access)`);
+      
+      // Determine user tier (allow all authenticated users to download)
+      let userTier = "free";
+      if (decodedToken.is_developer) {
+        userTier = "developer";
+      } else if (decodedToken.has_blenderbin_subscription || decodedToken.has_gizmo_subscription) {
+        userTier = "pro"; // Could be business, but pro is sufficient for downloads
+      }
+      
+      console.log(`Download authorized for user ${decodedToken.uid} with tier: ${userTier}`);
       
     } catch (error) {
       console.error('Token verification failed:', error);

@@ -262,6 +262,14 @@ interface FreemiumUser {
   firstQuery: Date;
 }
 
+// Define subscription tier limits
+const SUBSCRIPTION_LIMITS = {
+  free: 20,           // Free accounts (no subscription)
+  pro: 200,           // Pro subscription
+  business: 999999,   // Business subscription (effectively unlimited)
+  developer: 999999   // Developer accounts (effectively unlimited)
+};
+
 const freemiumUsers: Record<string, FreemiumUser> = {};
 
 // Max queries per day for freemium users
@@ -1658,47 +1666,76 @@ export async function POST(req: NextRequest) {
       try {
         console.log(`Request includes authentication token, verifying...`);
         
-        // CRITICAL: Properly verify the Firebase token and check subscription
+        // Verify the Firebase token and get user subscription info
         const decodedToken = await verifyFirebaseToken(auth.token);
         
-        // Check if user has valid subscription (including trial)
-        if (!decodedToken.has_subscription) {
-          console.log(`AI access denied for user ${decodedToken.uid}: No valid subscription`);
-          
-          // Provide specific messaging based on subscription status
-          let errorMessage = "AI features require an active subscription.";
-          let redirectUrl = "/pricing";
-          
-          // If user has BlenderBin but not Gizmo, suggest Gizmo
-          if (decodedToken.has_blenderbin_subscription && !decodedToken.has_gizmo_subscription) {
-            errorMessage = "AI features are included with BlenderBin subscriptions.";
-            redirectUrl = "/pricing/blenderbin";
-          } 
-          // If user has neither, suggest either product
-          else {
-            errorMessage = "AI features require a BlenderBin subscription (includes AI) or Gizmo AI subscription.";
-            redirectUrl = "/pricing";
-          }
-          
-          return NextResponse.json({ 
-            success: false, 
-            error: errorMessage,
-            redirectUrl: redirectUrl,
-            type: "subscription_required",
-            debug: {
-              hasBlenderBin: decodedToken.has_blenderbin_subscription || false,
-              hasGizmo: decodedToken.has_gizmo_subscription || false,
-              hasAnySubscription: decodedToken.has_subscription || false
-            }
-          }, { status: 403 });
-        }
-        
-        console.log(`AI access authorized for user ${decodedToken.uid} - BlenderBin: ${decodedToken.has_blenderbin_subscription}, Gizmo: ${decodedToken.has_gizmo_subscription}`);
-        
-        // User is authenticated and has valid subscription
+        // User is authenticated - determine their subscription tier
         isAuthenticated = true;
         userId = decodedToken.uid;
         userEmail = decodedToken.email || "";
+        
+        // Determine subscription tier based on subscriptions
+        if (decodedToken.is_developer) {
+          subscriptionTier = "developer";
+        } else if (decodedToken.has_blenderbin_subscription || decodedToken.has_gizmo_subscription) {
+          // Check if user has business tier subscription by looking at Stripe role and price IDs
+          const userDoc = await db.collection('users').doc(userId).get();
+          const userData = userDoc.data() || {};
+          const stripeRole = userData.stripeRole || 'pro';
+          
+          // Also check customer document for subscription details
+          const customerQuery = await db.collection('customers')
+            .where('email', '==', userEmail)
+            .limit(1)
+            .get();
+          
+          let hasBusinessSubscription = false;
+          
+          if (!customerQuery.empty) {
+            const customerDoc = customerQuery.docs[0];
+            const subscriptionsRef = customerDoc.ref.collection('subscriptions');
+            const activeSubs = await subscriptionsRef
+              .where('status', 'in', ['trialing', 'active'])
+              .get();
+            
+            // Check for business price IDs
+            const businessPriceIds = [
+              process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID,
+              process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID,
+              process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID,
+              process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID,
+            ].filter(Boolean);
+            
+            for (const sub of activeSubs.docs) {
+              const subData = sub.data();
+              if (subData.items) {
+                for (const item of subData.items) {
+                  const priceId = item.price?.id;
+                  if (businessPriceIds.includes(priceId)) {
+                    hasBusinessSubscription = true;
+                    break;
+                  }
+                }
+              } else if (subData.price?.id && businessPriceIds.includes(subData.price.id)) {
+                hasBusinessSubscription = true;
+                break;
+              }
+              if (hasBusinessSubscription) break;
+            }
+          }
+          
+          // Map Stripe roles and business subscriptions to our subscription tiers
+          if (hasBusinessSubscription || stripeRole === 'business' || stripeRole === 'enterprise') {
+            subscriptionTier = "business";
+          } else {
+            subscriptionTier = "pro";
+          }
+        } else {
+          // User is authenticated but has no subscription - free tier
+          subscriptionTier = "free";
+        }
+        
+        console.log(`User ${userId} authenticated with tier: ${subscriptionTier}`);
         
         // Extract analytics data if available
         if (auth.analytics) {
@@ -1713,8 +1750,21 @@ export async function POST(req: NextRequest) {
           console.log(`Request using usage-based pricing: ${usageBasedPricing}, beyond plan limits: ${beyondPlanLimits}`);
         }
         
-        // Get user's subscription tier (from the token verification)
-        subscriptionTier = decodedToken.subscription_tier || "pro";
+        // Check if the user can make a request based on their tier and usage
+        const [canProceed, limitMessage] = await checkAuthenticatedUserLimits(userId, subscriptionTier, usageBasedPricing);
+        
+        if (!canProceed) {
+          console.log(`User limit reached for ${userId}: ${limitMessage}`);
+          return NextResponse.json({ 
+            success: false, 
+            error: limitMessage,
+            type: "limit_reached",
+            subscriptionTier: subscriptionTier,
+            upgradeUrl: subscriptionTier === "free" ? "/pricing" : "/pricing/usage-based"
+          }, { status: 429 });
+        }
+        
+        console.log(`Request approved for user ${userId}: ${limitMessage}`);
         
       } catch (error) {
         console.error("Error verifying authentication token:", error);
@@ -1866,11 +1916,24 @@ export async function POST(req: NextRequest) {
       // Add authentication information if user is authenticated
       if (isAuthenticated) {
         try {
+          // Get user's current usage and limits
+          const { queryCount } = await getUserDailyUsage(userId);
+          const limit = SUBSCRIPTION_LIMITS[subscriptionTier as keyof typeof SUBSCRIPTION_LIMITS] || SUBSCRIPTION_LIMITS.free;
+          const remaining = limit >= 999999 ? 999999 : Math.max(0, limit - queryCount);
+          
           // Check user's subscription tier and usage-based pricing settings from Firestore
           const userDoc = await db.collection('users').doc(userId).get();
           const userData = userDoc.data() || {};
-          const subscriptionTier = userData.stripeRole || 'pro';
           const usagePricingSettings = userData.usagePricingSettings || {};
+          
+          // Add tier and usage information
+          sanitizedResponse.subscription = {
+            tier: subscriptionTier,
+            queryCount: queryCount,
+            dailyLimit: limit >= 999999 ? "unlimited" : limit,
+            remaining: limit >= 999999 ? "unlimited" : remaining,
+            usageBasedPricingEnabled: usagePricingSettings.enableUsageBasedPricing || false
+          };
           
           // In a real implementation, you would refresh the token here
           sanitizedResponse.auth = {
@@ -1933,4 +1996,61 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     message: "This is a Blender AI API endpoint. Send POST requests with a 'prompt' field to get responses from Claude."
   });
+}
+
+// Function to get user's daily usage from database
+async function getUserDailyUsage(userId: string): Promise<{ queryCount: number; lastQuery: Date | null }> {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dailyKey = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    const userUsageRef = db.collection('api_usage').doc(userId);
+    const userDoc = await userUsageRef.get();
+
+    if (!userDoc.exists) {
+      return { queryCount: 0, lastQuery: null };
+    }
+
+    const userData = userDoc.data();
+    const dailyCounts = userData?.daily_counts || {};
+    const queryCount = dailyCounts[dailyKey] || 0;
+    const lastQuery = userData?.last_query_time?.toDate() || null;
+
+    return { queryCount, lastQuery };
+  } catch (error) {
+    console.error('Error getting user daily usage:', error);
+    return { queryCount: 0, lastQuery: null };
+  }
+}
+
+// Function to check if authenticated user can make a request
+async function checkAuthenticatedUserLimits(userId: string, subscriptionTier: string, isUsageBasedPricing: boolean): Promise<[boolean, string]> {
+  try {
+    // If usage-based pricing is enabled, allow unlimited queries
+    if (isUsageBasedPricing) {
+      return [true, "Using usage-based pricing"];
+    }
+
+    // Get subscription limit
+    const limit = SUBSCRIPTION_LIMITS[subscriptionTier as keyof typeof SUBSCRIPTION_LIMITS] || SUBSCRIPTION_LIMITS.free;
+
+    // If unlimited (business/developer), allow the request
+    if (limit >= 999999) {
+      return [true, `Unlimited queries for ${subscriptionTier} tier`];
+    }
+
+    // Check daily usage
+    const { queryCount } = await getUserDailyUsage(userId);
+
+    if (queryCount >= limit) {
+      return [false, `Daily limit of ${limit} queries reached for ${subscriptionTier} tier. Upgrade for higher limits or enable usage-based pricing.`];
+    }
+
+    return [true, `Query ${queryCount + 1}/${limit} for ${subscriptionTier} tier`];
+  } catch (error) {
+    console.error('Error checking authenticated user limits:', error);
+    // Default to allowing the request on error to avoid blocking users
+    return [true, "Usage check failed, allowing request"];
+  }
 } 
