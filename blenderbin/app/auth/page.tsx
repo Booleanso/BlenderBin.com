@@ -2,9 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -13,18 +11,9 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
+import { auth } from '../lib/firebase-client';
 
-// Firebase configuration - matching the one in the Blender addon
-const firebaseConfig = {
-  apiKey: "AIzaSyAGrT9LVFl5REUBXKPMfFYevs7NLgUulZY",
-  authDomain: "blenderbin-com.firebaseapp.com",
-  projectId: "blenderbin-com",
-  appId: "1:879353779933:web:b1ca7e2fbf2a8fd4be75e4"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// Set up Google provider
 const googleProvider = new GoogleAuthProvider();
 
 // Separate component to handle search params

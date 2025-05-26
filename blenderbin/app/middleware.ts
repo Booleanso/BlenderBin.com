@@ -13,6 +13,11 @@ function isPublicRoute(path: string) {
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
+  // Skip all API routes - they should handle their own authentication
+  if (path.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   // Always allow public routes
   if (isPublicRoute(path)) {
     return NextResponse.next();
@@ -48,11 +53,12 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // Only match specific protected routes, exclude all API routes
     '/checkout/:path*',
     '/profile/:path*',
     '/settings/:path*',
     '/dashboard/:path*',
-    '/api/gizmo/:path*',
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    // Remove the problematic regex and API routes
+    '/((?!_next/static|_next/image|favicon.ico|api).*)',
   ]
 };

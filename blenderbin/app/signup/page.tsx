@@ -2,9 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
-  getAuth, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -15,29 +13,9 @@ import {
   onAuthStateChanged,
   User,
   browserLocalPersistence,
-  setPersistence,
-  inMemoryPersistence
+  setPersistence
 } from 'firebase/auth';
-
-// Firebase configuration using environment variables
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDIuu33lWChgE_oTteuAuywPrJwBFiRavM",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "marv-studio-points-plugin.firebaseapp.com",
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || "https://marv-studio-points-plugin-default-rtdb.firebaseio.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "marv-studio-points-plugin",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "marv-studio-points-plugin.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "441089628814",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:441089628814:web:4b4bc410399ae288bd47df",
-};
-
-// Initialize Firebase - prevent duplicate initialization
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-// Set persistence to LOCAL (browser)
-setPersistence(auth, browserLocalPersistence)
-  .catch((error) => {
-    console.error("Firebase persistence error:", error);
-  });
+import { auth } from '../lib/firebase-client';
 
 // Set up Google provider
 const googleProvider = new GoogleAuthProvider();
@@ -46,10 +24,14 @@ googleProvider.addScope('profile');
 googleProvider.addScope('email');
 // Set custom parameters for better redirect handling
 googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  // Use client ID from environment variable if available
-  ...(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? { client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID } : {})
+  prompt: 'select_account'
 });
+
+// Set persistence to LOCAL (browser)
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error("Firebase persistence error:", error);
+  });
 
 // Separate component to handle search params
 function SignupPageContent() {
