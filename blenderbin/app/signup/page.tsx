@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
@@ -51,7 +51,8 @@ googleProvider.setCustomParameters({
   ...(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? { client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID } : {})
 });
 
-export default function SignupPage() {
+// Separate component to handle search params
+function SignupPageContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const router = useRouter();
@@ -583,5 +584,40 @@ export default function SignupPage() {
         <div className="absolute bottom-1/4 left-1/3 h-96 w-96 rounded-full bg-emerald-500/3 blur-3xl" />
       </div>
     </section>
+  );
+}
+
+// Loading fallback component
+function SignupPageFallback() {
+  return (
+    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="w-full max-w-md">
+          <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm">
+            <div className="text-center">
+              <h1 className="text-2xl font-semibold tracking-tight text-white mb-6">
+                BlenderBin
+                <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                  Authentication
+                </span>
+              </h1>
+              <div className="flex justify-center mb-6">
+                <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+              </div>
+              <p className="text-zinc-300">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Main component with Suspense boundary
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupPageFallback />}>
+      <SignupPageContent />
+    </Suspense>
   );
 }

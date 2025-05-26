@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -27,7 +27,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-export default function AuthPage() {
+// Separate component to handle search params
+function AuthPageContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   
@@ -317,5 +318,28 @@ export default function AuthPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function AuthPageFallback() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-4 text-center">Loading...</h1>
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<AuthPageFallback />}>
+      <AuthPageContent />
+    </Suspense>
   );
 } 
