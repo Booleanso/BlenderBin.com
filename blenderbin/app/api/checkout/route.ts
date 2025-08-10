@@ -37,6 +37,26 @@ function getSubscriptionType(priceId: string): 'blenderbin' | 'gizmo' | 'unknown
   return 'unknown';
 }
 
+// Check on Stripe for any existing active/trialing subscriptions for this customer and product type
+async function hasExistingStripeSubscriptionForProduct(
+  stripeCustomerId: string,
+  productType: 'blenderbin' | 'gizmo'
+): Promise<boolean> {
+  const relevantPriceIds = productType === 'blenderbin' ? BLENDERBIN_PRICE_IDS : GIZMO_PRICE_IDS;
+
+  // Fetch up to 100 recent subscriptions and filter locally by status and price
+  const subs = await stripe.subscriptions.list({
+    customer: stripeCustomerId,
+    limit: 100
+  });
+
+  return subs.data.some((sub) => {
+    const isActiveOrTrial = sub.status === 'active' || sub.status === 'trialing';
+    if (!isActiveOrTrial) return false;
+    return sub.items.data.some((item) => relevantPriceIds.includes(item.price.id));
+  });
+}
+
 // Helper function to check if user has existing subscription for specific product
 async function checkExistingSubscription(userId: string, productType: 'blenderbin' | 'gizmo'): Promise<boolean> {
   const subscriptionsSnapshot = await db
@@ -165,16 +185,8 @@ export async function POST(request: Request) {
 
     console.log(`Checkout for ${productType} subscription with price ID: ${priceId}`);
 
-    // Check if user already has an active subscription for this specific product
+    // Check if user already has an active subscription for this specific product (Firestore)
     const hasExistingSubscription = await checkExistingSubscription(userId, productType);
-    
-    if (hasExistingSubscription) {
-      console.log(`User ${userId} already has an active ${productType} subscription`);
-      return NextResponse.json(
-        { error: `User already has an active ${productType} subscription` },
-        { status: 400 }
-      );
-    }
 
     // Get or create Stripe customer
     const stripeCustomerId = await getOrCreateStripeCustomer(userId);
@@ -182,6 +194,16 @@ export async function POST(request: Request) {
     if (!stripeCustomerId) {
       return NextResponse.json(
         { error: 'Failed to create or retrieve Stripe customer' },
+        { status: 400 }
+      );
+    }
+
+    // Extra Stripe-side dedupe to avoid race conditions
+    const hasStripeSubscription = await hasExistingStripeSubscriptionForProduct(stripeCustomerId, productType);
+    if (hasExistingSubscription || hasStripeSubscription) {
+      console.log(`User ${userId} already has an active ${productType} subscription (firestore=${hasExistingSubscription}, stripe=${hasStripeSubscription})`);
+      return NextResponse.json(
+        { error: `User already has an active ${productType} subscription` },
         { status: 400 }
       );
     }
@@ -233,7 +255,7 @@ export async function POST(request: Request) {
     const cancelUrl = `${baseUrl}/pricing`;
       
     // Create checkout session with proper trial setup
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       customer: stripeCustomerId,
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -259,15 +281,6 @@ export async function POST(request: Request) {
         }
       },
       payment_method_collection: productType === 'blenderbin' ? 'always' : 'if_required', // Always collect payment method for BlenderBin trials
-      invoice_creation: {
-        enabled: true,
-        invoice_data: {
-          metadata: {
-            firebaseUID: userId,
-            productType: productType
-          }
-        }
-      },
       success_url: successUrl,
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
@@ -286,7 +299,10 @@ export async function POST(request: Request) {
         mappedPriceId: actualPriceId,
         trialEnabled: productType === 'blenderbin' ? 'true' : 'false'
       }
-    });
+    } as const;
+
+    const idempotencyKey = `checkout:${userId}:${productType}:${actualPriceId}`;
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     // Store checkout session info with product type
     await db.collection('customers').doc(userId).collection('checkout_sessions').doc(session.id).set({

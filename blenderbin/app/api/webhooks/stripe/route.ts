@@ -183,6 +183,36 @@ async function handleSubscriptionCreated(subscription: any) {
       return; // Skip processing unknown subscription types
     }
     
+    // Guard: prevent duplicate BlenderBin subscriptions for same user
+    if (productType === 'blenderbin') {
+      const subSnap = await db
+        .collection('customers')
+        .doc(userId)
+        .collection('subscriptions')
+        .where('status', 'in', ['active', 'trialing'])
+        .get();
+
+      const relevantPriceIds = BLENDERBIN_PRICE_IDS;
+      const hasAnotherActive = subSnap.docs.some((doc) => {
+        if (doc.id === subscriptionId) return false;
+        const data = doc.data();
+        const isActiveOrTrial = data.status === 'active' || data.status === 'trialing';
+        if (!isActiveOrTrial) return false;
+        return (data.items || []).some((item: any) => item?.price?.id && relevantPriceIds.includes(item.price.id));
+      });
+
+      if (hasAnotherActive) {
+        console.log(`Duplicate BlenderBin subscription detected for user ${userId}. Canceling new subscription ${subscriptionId}`);
+        try {
+          await stripe.subscriptions.cancel(subscriptionId);
+          console.log(`Canceled duplicate BlenderBin subscription ${subscriptionId}`);
+        } catch (cancelErr) {
+          console.error('Error canceling duplicate subscription:', cancelErr);
+        }
+        return; // Do not record duplicate
+      }
+    }
+
     const tier = getTierFromPriceId(priceId, productType);
     
     console.log(`Subscription ${subscriptionId} is for ${productType} with tier ${tier}`);

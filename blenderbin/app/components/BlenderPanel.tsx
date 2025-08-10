@@ -125,8 +125,8 @@ export default function NavBar() {
   const handleCheckout = async () => {
     try {
       if (!user?.uid) return;
-      
-      const response = await fetch('/api/checkout', {
+      // Use BlenderBin trial endpoint consistently
+      const response = await fetch('/api/checkout/trial', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,21 +138,13 @@ export default function NavBar() {
       });
 
       if (!response.ok) throw new Error('Checkout failed');
-      
-      const { sessionId } = await response.json();
-      
-      // Use test key for localhost, live key for production
-      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const publishableKey = isDevelopment
-        ? process.env.NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY
-        : process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-        
-      console.log(`Using Stripe key for ${isDevelopment ? 'development' : 'production'}`);
-      
-      const stripe = await loadStripe(publishableKey!);
-      if (!stripe) throw new Error('Failed to load Stripe');
-      
-      await stripe.redirectToCheckout({ sessionId });
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (error) {
       console.error('Checkout error:', error);
     }

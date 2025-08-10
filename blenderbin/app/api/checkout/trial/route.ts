@@ -81,6 +81,19 @@ async function getOrCreateStripeCustomer(userId: string) {
   }
 }
 
+// Additional Stripe-side dedupe check
+async function hasExistingStripeSubscriptionForBlenderBin(stripeCustomerId: string): Promise<boolean> {
+  const subs = await stripe.subscriptions.list({
+    customer: stripeCustomerId,
+    limit: 100
+  });
+  return subs.data.some((sub) => {
+    const isActiveOrTrial = sub.status === 'active' || sub.status === 'trialing';
+    if (!isActiveOrTrial) return false;
+    return sub.items.data.some((item) => BLENDERBIN_PRICE_IDS.includes(item.price.id));
+  });
+}
+
 export async function POST(request: Request) {
   try {
     // Check if we're in development mode for localhost
@@ -106,16 +119,8 @@ export async function POST(request: Request) {
 
     console.log(`Processing BlenderBin trial checkout for user: ${userId}, price ID: ${priceId}`);
 
-    // Check if user already has an active BlenderBin subscription
+    // Check if user already has an active BlenderBin subscription (Firestore)
     const hasExistingSubscription = await checkExistingBlenderBinSubscription(userId);
-    
-    if (hasExistingSubscription) {
-      console.log(`User ${userId} already has an active BlenderBin subscription`);
-      return NextResponse.json(
-        { error: 'User already has an active BlenderBin subscription' },
-        { status: 400 }
-      );
-    }
 
     // Get or create Stripe customer
     const stripeCustomerId = await getOrCreateStripeCustomer(userId);
@@ -123,6 +128,16 @@ export async function POST(request: Request) {
     if (!stripeCustomerId) {
       return NextResponse.json(
         { error: 'Failed to create or retrieve Stripe customer' },
+        { status: 400 }
+      );
+    }
+
+    // Stripe-side dedupe to avoid race conditions
+    const hasStripeSubscription = await hasExistingStripeSubscriptionForBlenderBin(stripeCustomerId);
+    if (hasExistingSubscription || hasStripeSubscription) {
+      console.log(`User ${userId} already has an active BlenderBin subscription (firestore=${hasExistingSubscription}, stripe=${hasStripeSubscription})`);
+      return NextResponse.json(
+        { error: 'User already has an active BlenderBin subscription' },
         { status: 400 }
       );
     }
@@ -162,7 +177,7 @@ export async function POST(request: Request) {
     const cancelUrl = `${baseUrl}?trial_cancelled=true`;
       
     // Create checkout session with BlenderBin trial setup
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       customer: stripeCustomerId,
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -187,8 +202,6 @@ export async function POST(request: Request) {
         }
       },
       payment_method_collection: 'always', // Always collect payment method for trials
-      // Removed invoice_creation - invoices are created automatically in subscription mode
-      // Ensure automatic payment after trial
       automatic_tax: { enabled: true },
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -210,7 +223,10 @@ export async function POST(request: Request) {
         trialType: 'blenderbin_trial',
         createdAt: new Date().toISOString()
       }
-    });
+    } as const;
+
+    const idempotencyKey = `checkout:trial:${userId}:blenderbin:${actualPriceId}`;
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     // Store checkout session info
     await db.collection('customers').doc(userId).collection('checkout_sessions').doc(session.id).set({

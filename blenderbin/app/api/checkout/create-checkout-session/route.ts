@@ -1,3 +1,5 @@
+// DEPRECATED: Use /api/checkout (for Gizmo) or /api/checkout/trial (for BlenderBin) instead.
+// Keeping this route to avoid breaking links; it now delegates and prevents duplicate sessions.
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '../../../lib/stripe';
 import { auth, db } from '../../../lib/firebase-admin';
@@ -106,17 +108,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    console.log(`Creating checkout session for ${productType} subscription with price ID: ${priceId}`);
+    console.log(`[DEPRECATED] create-checkout-session hit for ${productType}. Delegating to modern endpoint.`);
 
-    // Check if user already has an active subscription for this specific product
+    // Prevent duplicates
     const hasExistingSubscription = await checkExistingSubscription(uid, productType);
-    
     if (hasExistingSubscription) {
-      console.log(`User ${uid} already has an active ${productType} subscription`);
-      return NextResponse.json(
-        { error: `User already has an active ${productType} subscription` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: `User already has an active ${productType} subscription` }, { status: 400 });
     }
 
     // Set product-specific return URLs
@@ -126,60 +123,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       : `${origin}/dashboard?success=true&product=gizmo`;
     const defaultCancelUrl = `${origin}/pricing?canceled=true`;
     
-    // Create a checkout session
-    const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      billing_address_collection: 'auto',
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      subscription_data: {
-        trial_period_days: 7, // 7-day free trial for both products
-        trial_settings: {
-          end_behavior: {
-            missing_payment_method: 'cancel' // Cancel if no payment method after trial
-          }
-        }
-      },
-      payment_method_collection: 'if_required', // Collect payment method during trial
-      success_url: returnUrl || defaultSuccessUrl,
-      cancel_url: returnUrl || defaultCancelUrl,
-      customer_email: email,
-      client_reference_id: uid,
-      allow_promotion_codes: true,
-      tax_id_collection: { enabled: true },
-      customer_update: {
-        name: 'auto',
-        address: 'auto'
-      },
-      metadata: {
-        userId: uid,
-        productType: productType, // Add product type to metadata
-        firebaseUID: uid
-      },
-    });
-    
-    // Store the checkout session in Firestore with product type
-    await db.collection('stripe_checkout_sessions').doc(checkoutSession.id).set({
-      userId: uid,
-      sessionId: checkoutSession.id,
-      status: 'created',
-      priceId,
-      productType: productType, // Store product type
-      created: new Date(),
-    });
-    
-    console.log(`Created ${productType} checkout session ${checkoutSession.id} for user ${uid}`);
-    
-    return NextResponse.json({ 
-      sessionId: checkoutSession.id, 
-      url: checkoutSession.url,
-      productType: productType 
-    });
+    // Delegate to the maintained endpoints
+    if (productType === 'blenderbin') {
+      const res = await fetch(`${origin}/api/checkout/trial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, priceId })
+      });
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status });
+    } else {
+      const res = await fetch(`${origin}/api/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, priceId })
+      });
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status });
+    }
   } catch (error) {
     console.error('Error creating checkout session:', error);
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
