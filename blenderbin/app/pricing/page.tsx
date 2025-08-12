@@ -39,70 +39,70 @@ export default function PricingPage() {
   }
 
   return (
-    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-24">
+    <section className="relative min-h-screen bg-black px-4 py-24">
       {/* Content container */}
       <div className="relative mx-auto max-w-6xl">
         
         {/* Header */}
-        <div className="text-center mb-20">
-          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl mb-6">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extralight tracking-tight text-white mb-4">
             Choose your
             <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               product.
             </span>
           </h1>
-          <p className="text-lg leading-relaxed text-zinc-300 max-w-2xl mx-auto">
+          <p className="text-lg text-zinc-300 max-w-2xl mx-auto font-extralight">
             Select the pricing for the product you're interested in
           </p>
         </div>
 
         {/* Product Selection Cards */}
-        <div className="grid gap-12 md:grid-cols-2 max-w-5xl mx-auto mb-24">
+        <div className="grid gap-6 md:grid-cols-2 max-w-5xl mx-auto mb-16">
           
           {/* BlenderBin Card */}
           <div 
-            className="group rounded-3xl border border-blue-800/50 bg-gradient-to-br from-blue-900/20 to-blue-800/10 p-8 md:p-12 backdrop-blur-sm transition-all duration-200 hover:border-blue-700/50 hover:scale-[1.02] cursor-pointer"
+            className="group rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 md:p-10 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:scale-[1.02] cursor-pointer"
             onClick={() => router.push('/pricing/blenderbin')}
           >
             <div className="flex items-center mb-8">
-              <div className="p-4 rounded-2xl bg-blue-500/20 mr-6 border border-blue-500/30">
-                <Box className="h-8 w-8 text-blue-400" />
+              <div className="p-4 rounded-2xl bg-zinc-800/50 mr-6 border border-zinc-700/50">
+                <Box className="h-8 w-8 text-zinc-200" />
               </div>
               <div>
-                <h2 className="text-3xl font-semibold text-white mb-2">BlenderBin</h2>
-                <p className="text-zinc-300">Blender Add-ons Collection</p>
+                <h2 className="text-3xl font-extralight text-white mb-2">BlenderBin</h2>
+                <p className="text-zinc-300 font-extralight">Blender Add-ons Collection</p>
           </div>
         </div>
 
             <div className="h-px bg-zinc-800/50 mb-8"></div>
             
             <div className="mb-8">
-              <p className="text-zinc-300 mb-6 leading-relaxed">
+              <p className="text-zinc-300 mb-6 leading-relaxed font-extralight">
                 Access our complete collection of professional Blender add-ons with a 7-day free trial.
               </p>
               
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-blue-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">Full access to all Blender add-ons</span>
               </li>
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-blue-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">7-day free trial</span>
               </li>
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-blue-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">Weekly updates and new add-ons</span>
               </li>
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-blue-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">Custom add-on requests</span>
               </li>
@@ -110,8 +110,8 @@ export default function PricingPage() {
             </div>
 
             <div className="text-center">
-              <div className="text-3xl font-bold text-white mb-4">Starting at $14/month</div>
-              <button className="w-full rounded-full py-3 px-6 font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2">
+              <div className="text-3xl font-semibold text-white mb-4">Starting at $14/month</div>
+              <button className="w-full rounded-full py-3 px-6 font-medium bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2">
                 View BlenderBin Pricing <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -119,48 +119,48 @@ export default function PricingPage() {
 
           {/* Gizmo AI Card */}
           <div 
-            className="group rounded-3xl border border-purple-800/50 bg-gradient-to-br from-purple-900/20 to-purple-800/10 p-8 md:p-12 backdrop-blur-sm transition-all duration-200 hover:border-purple-700/50 hover:scale-[1.02] cursor-pointer"
+            className="group rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 md:p-10 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:scale-[1.02] cursor-pointer"
             onClick={() => router.push('/pricing/gizmo')}
           >
             <div className="flex items-center mb-8">
-              <div className="p-4 rounded-2xl bg-purple-500/20 mr-6 border border-purple-500/30">
-                <Bot className="h-8 w-8 text-purple-400" />
+              <div className="p-4 rounded-2xl bg-zinc-800/50 mr-6 border border-zinc-700/50">
+                <Bot className="h-8 w-8 text-zinc-200" />
               </div>
               <div>
-                <h2 className="text-3xl font-semibold text-white mb-2">Gizmo AI</h2>
-                <p className="text-zinc-300">AI-Powered Blender Assistant</p>
+                <h2 className="text-3xl font-extralight text-white mb-2">Gizmo AI</h2>
+                <p className="text-zinc-300 font-extralight">AI-Powered Blender Assistant</p>
               </div>
             </div>
             
             <div className="h-px bg-zinc-800/50 mb-8"></div>
             
             <div className="mb-8">
-              <p className="text-zinc-300 mb-6 leading-relaxed">
+              <p className="text-zinc-300 mb-6 leading-relaxed font-extralight">
                 Enhance your Blender workflow with AI-powered assistance and intelligent automation.
               </p>
               
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-purple-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">AI-powered Blender assistant</span>
               </li>
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-purple-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">Intelligent code completion</span>
               </li>
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-purple-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">Advanced AI queries</span>
               </li>
                 <li className="flex items-center gap-3 text-zinc-300">
-                  <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-purple-400" />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800/50 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-zinc-200" />
                   </div>
                   <span className="text-sm">Priority support</span>
                 </li>
@@ -168,8 +168,8 @@ export default function PricingPage() {
                 </div>
 
             <div className="text-center">
-              <div className="text-3xl font-bold text-white mb-4">Starting at $20/month</div>
-              <button className="w-full rounded-full py-3 px-6 font-medium bg-purple-600 text-white hover:bg-purple-700 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2">
+              <div className="text-3xl font-semibold text-white mb-4">Starting at $20/month</div>
+              <button className="w-full rounded-full py-3 px-6 font-medium bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2">
                 View Gizmo AI Pricing <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -177,7 +177,7 @@ export default function PricingPage() {
           </div>
 
         {/* Feature Comparison Section */}
-        <div className="mb-20">
+        <div className="mb-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-semibold tracking-tight text-white mb-4">
               Product Comparison
@@ -240,8 +240,8 @@ export default function PricingPage() {
         {/* Contact section */}
         <div className="text-center">
           <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 md:p-12 backdrop-blur-sm max-w-2xl mx-auto">
-            <h3 className="text-2xl font-semibold mb-4 text-white">Need help choosing?</h3>
-            <p className="mb-8 text-zinc-300 leading-relaxed">
+            <h3 className="text-2xl font-extralight mb-4 text-white">Need help choosing?</h3>
+            <p className="mb-8 text-zinc-300 leading-relaxed font-extralight">
               Have questions about our products or need help selecting the right plan for your needs?
           </p>
           <Link 
