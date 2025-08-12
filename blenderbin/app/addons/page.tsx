@@ -52,6 +52,34 @@ export default function AddonsPage() {
     fetchAddons();
   }, []);
 
+  // Handle post-purchase redirect to auto-download
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const purchase = url.searchParams.get('purchase');
+    const sessionId = url.searchParams.get('session_id');
+    const addon = url.searchParams.get('addon');
+    if (purchase === 'success' && sessionId && addon) {
+      // Trigger download
+      (async () => {
+        try {
+          const res = await fetch(`/api/addons/download?session_id=${encodeURIComponent(sessionId)}&addon=${encodeURIComponent(addon)}`);
+          const data = await res.json();
+          if (res.ok && data.downloadUrl) {
+            window.location.href = data.downloadUrl;
+          }
+        } catch (e) {
+          console.error('Auto-download failed:', e);
+        } finally {
+          // Clean URL
+          url.searchParams.delete('purchase');
+          url.searchParams.delete('session_id');
+          url.searchParams.delete('addon');
+          window.history.replaceState({}, '', url.toString());
+        }
+      })();
+    }
+  }, []);
+
   const fetchAddons = async () => {
     try {
       setLoading(true);
@@ -101,34 +129,55 @@ export default function AddonsPage() {
     });
   };
 
-  // Handle download attempts
-  const handleFreeDownload = async (addon: AddonMetadata) => {
+  const baseNameFromFilename = (filename: string) => filename.replace(/\.[^/.]+$/, '');
+
+  const handleSubscribe = async (addon: AddonMetadata) => {
+    // Send users to the BlenderBin trial/subscription
     if (!user) {
-      // Redirect to signup with return URL
-      router.push(`/signup?from=${encodeURIComponent('/addons')}&action=download&addon=${encodeURIComponent(addon.filename)}`);
+      router.push('/signup');
       return;
     }
-    
-    // User is authenticated, redirect to download page with auth token
     try {
-      const idToken = await user.getIdToken();
-      router.push(`/download?userId=${user.uid}&token=${encodeURIComponent(idToken)}&addon=${encodeURIComponent(addon.filename)}`);
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      // Fallback to download page without token
-      router.push(`/download?userId=${user.uid}&addon=${encodeURIComponent(addon.filename)}`);
+      const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '';
+      const res = await fetch('/api/checkout/trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, priceId })
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        router.push('/pricing/blenderbin');
+      }
+    } catch (e) {
+      console.error('Subscribe error:', e);
+      router.push('/pricing/blenderbin');
     }
   };
 
-  const handlePremiumDownload = (addon: AddonMetadata) => {
-    if (!user) {
-      // Redirect to signup with return URL
-      router.push(`/signup?from=${encodeURIComponent('/addons')}&action=premium&addon=${encodeURIComponent(addon.filename)}`);
-      return;
+  const handleBuyAddon = async (addon: AddonMetadata) => {
+    const slug = baseNameFromFilename(addon.filename);
+    try {
+      const res = await fetch('/api/addons/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          addonSlug: slug,
+          addonName: addon.name,
+          userId: user?.uid || null
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      console.error('Buy addon error:', e);
     }
-    
-    // User is authenticated, check subscription or redirect to pricing
-    router.push(`/pricing/blenderbin?addon=${encodeURIComponent(addon.filename)}`);
   };
 
   if (loading) {
@@ -319,27 +368,19 @@ export default function AddonsPage() {
                   </div>
                 </div>
 
-                {/* Actions - This will always be at the bottom */}
+                {/* Actions - Subscribe and Buy */}
                 <div className="flex gap-3 mt-auto">
-                  {addon.tier === 'free' ? (
-                    <button 
-                      onClick={() => handleFreeDownload(addon)}
-                      className="flex-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      {user ? 'Download Free' : 'Sign in to Download'}
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => handlePremiumDownload(addon)}
-                      className="flex-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      {user ? 'Subscribe to Download' : 'Sign in for Premium'}
-                    </button>
-                  )}
-                  <button className="rounded-full bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 hover:text-white p-2 transition-all duration-200 hover:scale-105">
-                    <ExternalLink className="h-4 w-4" />
+                  <button 
+                    onClick={() => handleSubscribe(addon)}
+                    className="flex-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
+                  >
+                    Subscribe
+                  </button>
+                  <button 
+                    onClick={() => handleBuyAddon(addon)}
+                    className="flex-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
+                  >
+                    Buy This Addon
                   </button>
                 </div>
               </div>
