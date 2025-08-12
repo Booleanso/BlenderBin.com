@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import "./css/index/about-section.css";
 import "./css/index/blender-screen.css";
 import "./css/index/scroll-addons.css";
+import "./css/index/home-theme.css";
 
 import HeroSection from './components/index/HeroSection/HeroSection';
 import TabComponent from './components/index/TabComponent/TabComponent';

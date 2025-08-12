@@ -184,25 +184,17 @@ const TabComponent: React.FC = () => {
   }, [loading, scrollItems]);
 
   return (
-    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-24">
+    <section
+      className="relative bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-8"
+      style={{ marginTop: '112px' }}
+    >
       {/* Content container - Apple-like centered layout */}
       <div className="relative mx-auto max-w-6xl">
         
-        {/* Main header */}
-        <div className="text-center mb-20">
-          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl mb-6">
-            Built for
-            <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              creators.
-            </span>
-          </h1>
-          <p className="text-lg leading-relaxed text-zinc-300 md:text-xl max-w-2xl mx-auto">
-            Everything you need to streamline your Blender workflow, packaged in one beautiful subscription.
-          </p>
-        </div>
+        {/* Main header removed per request to keep sections tighter */}
 
         {/* Features grid */}
-        <div className="space-y-24">
+        <div className="space-y-12 md:space-y-16">
         {sections.map((section, index) => (
             <div key={index} className="relative">
               {/* Individual feature card */}

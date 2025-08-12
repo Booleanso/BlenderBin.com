@@ -182,7 +182,7 @@ export default function AddonsPage() {
 
   if (loading) {
     return (
-      <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-24">
+      <section className="relative min-h-screen bg-black px-4 py-24">
         <div className="relative mx-auto max-w-6xl">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
@@ -196,7 +196,7 @@ export default function AddonsPage() {
   }
 
   return (
-    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-24">
+    <section className="relative min-h-screen bg-black px-4 py-24">
       {/* Content container */}
       <div className="relative mx-auto max-w-6xl">
         
@@ -215,9 +215,7 @@ export default function AddonsPage() {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl mb-6">
               BlenderBin
-              <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                Add-ons
-              </span>
+              <span className="block text-white">Add-ons</span>
             </h1>
             <p className="text-lg leading-relaxed text-zinc-300 max-w-2xl mx-auto">
               Discover our curated collection of professional Blender add-ons. 
@@ -244,7 +242,7 @@ export default function AddonsPage() {
                     onClick={() => setSelectedTier(tier)}
                     className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                       selectedTier === tier
-                        ? 'bg-blue-600 text-white shadow-lg'
+                        ? 'bg-white text-black'
                         : 'text-zinc-300 hover:text-white hover:bg-zinc-800/50'
                     }`}
                   >
@@ -262,7 +260,7 @@ export default function AddonsPage() {
                   onClick={() => setSelectedCategory(category)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                     selectedCategory === category
-                      ? 'bg-emerald-600 text-white'
+                      ? 'bg-white text-black'
                       : 'bg-zinc-800/50 text-zinc-300 hover:bg-zinc-700/50 hover:text-white'
                   }`}
                 >
@@ -293,11 +291,28 @@ export default function AddonsPage() {
             {filteredAddons.map((addon, index) => (
               <div
                 key={addon.filename}
-                className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-6 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:bg-zinc-800/30 hover:scale-[1.02] flex flex-col h-full"
+                className="rounded-3xl border border-zinc-800/50 bg-zinc-900 p-6 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:bg-zinc-900/80 hover:scale-[1.02] flex flex-col h-full"
                 style={{
                   animationDelay: `${index * 100}ms`,
                 }}
               >
+                {/* Addon Media */}
+                <div className="mb-4 rounded-2xl overflow-hidden border border-zinc-800/60 bg-black">
+                  <video
+                    className="w-full h-44 md:h-52 object-cover"
+                    src={`/addons/${baseNameFromFilename(addon.filename)}.mp4`}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    controls
+                    onError={(e) => {
+                      // If video missing, hide element gracefully
+                      (e.currentTarget as HTMLVideoElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+
                 {/* Addon Header */}
                 <div className="mb-4">
                   <div className="flex items-start justify-between mb-3">
@@ -307,35 +322,25 @@ export default function AddonsPage() {
                           {addon.name}
                         </h3>
                         {addon.tier === 'premium' && (
-                          <span className="px-2 py-1 text-xs bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-300 rounded-full border border-yellow-500/30 font-medium">
+                          <span className="px-2 py-1 text-xs bg-zinc-800/50 text-zinc-200 rounded-full border border-zinc-700 font-medium">
                             PRO
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-1 text-xs bg-blue-600/20 text-blue-300 rounded-full border border-blue-600/30">
+                        <span className="px-2 py-1 text-xs bg-zinc-800/50 text-zinc-200 rounded-full border border-zinc-700">
                           v{addon.version}
                         </span>
-                        <span className="px-2 py-1 text-xs bg-zinc-700/50 text-zinc-300 rounded-full border border-zinc-600/30">
+                        <span className="px-2 py-1 text-xs bg-zinc-800/50 text-zinc-200 rounded-full border border-zinc-700">
                           {addon.category}
                         </span>
-                        <span className={`px-2 py-1 text-xs rounded-full border font-medium ${
-                          addon.tier === 'free' 
-                            ? 'bg-emerald-600/20 text-emerald-300 border-emerald-600/30' 
-                            : 'bg-purple-600/20 text-purple-300 border-purple-600/30'
-                        }`}>
+                        <span className={`px-2 py-1 text-xs rounded-full border font-medium bg-zinc-800/50 text-zinc-200 border-zinc-700`}>
                           {addon.tier === 'free' ? 'FREE' : 'PREMIUM'}
                         </span>
                       </div>
                     </div>
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      addon.tier === 'premium' 
-                        ? 'bg-gradient-to-br from-purple-600/20 to-yellow-500/20' 
-                        : 'bg-blue-600/20'
-                    }`}>
-                      <Package className={`h-5 w-5 ${
-                        addon.tier === 'premium' ? 'text-yellow-400' : 'text-blue-400'
-                      }`} />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-zinc-800/60`}>
+                      <Package className={`h-5 w-5 text-zinc-200`} />
                     </div>
                   </div>
                   
@@ -372,13 +377,13 @@ export default function AddonsPage() {
                 <div className="flex gap-3 mt-auto">
                   <button 
                     onClick={() => handleSubscribe(addon)}
-                    className="flex-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
+                    className="flex-1 rounded-full bg-white text-black hover:bg-zinc-100 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
                   >
                     Subscribe
                   </button>
                   <button 
                     onClick={() => handleBuyAddon(addon)}
-                    className="flex-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
+                    className="flex-1 rounded-full bg-zinc-900 text-white border border-zinc-700 hover:bg-zinc-800 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
                   >
                     Buy This Addon
                   </button>

@@ -1,22 +1,23 @@
 .navbar {
   position: fixed;
-  top: 1%;
+  bottom: 12px; /* move to bottom */
   left: 0;
   right: 0;
-  height: 64px;
+  height: 44px; /* even smaller island */
   background: #101010;
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
   z-index: 1000;
-  max-width: 850px;
+  max-width: 560px; /* narrower */
   margin: 0 auto;
-  border-radius: 55px;
+  border-radius: 9999px; /* pill-rounded */
+  overflow: hidden; /* ensure inner contents respect rounding */
 
   .navContainer {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 12px;
     height: 100%;
     display: flex;
     align-items: center;
@@ -28,8 +29,8 @@
       align-items: center;
   
       .logoImage {
-        width: 28px;
-        height: 28px;
+        width: 22px; /* smaller logo */
+        height: 22px;
         object-fit: contain;
       }
     }
@@ -52,7 +53,7 @@
 
     .authButtons {
       display: flex;
-      gap: 16px;
+      gap: 10px;
       align-items: center;
       
       .userEmail {
@@ -66,8 +67,8 @@
       }
   
       .profileButton {
-        width: 40px;
-        height: 40px;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
         padding: 0;
         overflow: hidden;
@@ -100,11 +101,12 @@
   
       .downloadButton, .signupButton {
         background: rgba(255, 255, 255, 0.1);
-        color: white;
-        padding: 8px 20px;
-        border-radius: 55px;
+        color: #fff; /* force white */
+        padding: 6px 12px;
+        border-radius: 9999px; /* rounded buttons */
         text-decoration: none;
-        font-size: 0.9rem;
+        font-size: 1rem; /* bigger text */
+        font-weight: 500;
         transition: all 0.2s ease;
         border: none;
         cursor: pointer;
@@ -116,11 +118,12 @@
 
       .dashboardButton {
         background: rgba(255, 255, 255, 0.1);
-        color: white;
-        padding: 8px 20px;
-        border-radius: 55px;
+        color: #fff; /* force white */
+        padding: 6px 12px;
+        border-radius: 9999px; /* rounded */
         text-decoration: none;
-        font-size: 0.9rem;
+        font-size: 1rem; /* bigger text */
+        font-weight: 500;
         transition: all 0.2s ease;
         border: none;
         cursor: pointer;
@@ -171,12 +174,13 @@
       }
   
       .loginButton {
-        color: rgba(255, 255, 255, 0.7);
+        color: #fff; /* force white */
         text-decoration: none;
-        font-size: 0.9rem;
+        font-size: 1rem; /* bigger text */
+        font-weight: 500;
         transition: all 0.2s ease;
-        padding: 8px 20px;
-        border-radius: 55px;
+        padding: 6px 12px;
+        border-radius: 9999px;
   
         &:hover {
           color: white;
@@ -186,11 +190,12 @@
       /* Add button for pricing that matches dashboard */
       .pricingButton {
         background: rgba(255, 255, 255, 0.1);
-        color: white;
-        padding: 8px 20px;
-        border-radius: 55px;
+        color: #fff; /* force white */
+        padding: 6px 12px;
+        border-radius: 9999px;
         text-decoration: none;
-        font-size: 0.9rem;
+        font-size: 1rem; /* bigger text */
+        font-weight: 500;
         transition: all 0.2s ease;
         border: none;
         cursor: pointer;

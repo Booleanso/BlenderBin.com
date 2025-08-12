@@ -39,12 +39,12 @@ const FeatureSection = () => {
   };
 
   return (
-    <section className="relative bg-black px-4 py-20">
+    <section className="relative bg-black px-4 py-8">
       {/* Content container */}
       <div className="relative mx-auto max-w-7xl">
         
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl mb-3">
             Create 3D faster
           </h2>

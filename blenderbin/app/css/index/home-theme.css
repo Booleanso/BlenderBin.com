@@ -1,0 +1,74 @@
+/* Global home page theme to match Addons page + Hero font aesthetics */
+
+.body-main {
+  background-color: #000;
+  color: #e5e5e5;
+}
+
+/* Tighten vertical rhythm between homepage sections */
+.body-main > section {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  min-height: auto !important; /* override min-h-screen */
+}
+
+/* Optional subtle spacing between consecutive sections */
+.body-main > section + section {
+  margin-top: 1.25rem !important; /* ~20px */
+}
+
+/* Skinny, aesthetic headings to match Hero */
+.body-main h1,
+.body-main h2,
+.body-main h3 {
+  font-weight: 200; /* Geist extralight */
+  letter-spacing: -0.02em;
+}
+
+.body-main h4,
+.body-main h5,
+.body-main h6,
+.body-main p,
+.body-main li,
+.body-main span {
+  font-weight: 300;
+}
+
+/* Cards/sections neutralize colored backgrounds and gradients */
+.body-main section,
+.body-main .card,
+.body-main .panel,
+.body-main .module {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Aesthetic buttons similar to Addons page */
+.body-main button,
+.body-main a.button,
+.body-main a[role="button"] {
+  border-radius: 9999px;
+  padding: 0.6rem 1rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.body-main button:hover,
+.body-main a.button:hover,
+.body-main a[role="button"]:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Muted dividers and borders */
+.body-main .divider,
+.body-main hr {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+

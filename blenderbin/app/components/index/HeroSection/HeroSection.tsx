@@ -66,17 +66,28 @@ const HeroSection = ({ scrollY }: HeroSectionProps) => {
       className="hero-container" 
       style={transformStyles}
     >
+      {/* Background video */}
+      <div className="hero-video-bg" aria-hidden="true">
+        <video
+          className="hero-video"
+          src="/herosection/herovid.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      </div>
       <div className="hero-title-container">
-        <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl lg:text-6xl mb-4 text-center">
+        <h1 className="text-6xl md:text-7xl lg:text-8xl font-extralight tracking-tight text-white mb-6 text-left leading-tight" style={{ letterSpacing: '-0.02em' }}>
           All of your Blender add-ons,
-          <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+          <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent text-left">
             in one space.
           </span>
         </h1>
-        <p className="text-lg leading-relaxed text-zinc-300 max-w-xl mx-auto text-center mb-8">
+        <p className="text-2xl text-zinc-300 max-w-4xl mb-10 text-left font-extralight" style={{ letterSpacing: '-0.01em', lineHeight: 1.4 }}>
           Professional Blender add-ons, curated and optimized for your workflow.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-start items-start">
           <button 
             onClick={scrollToSubscriptions} 
             className="group inline-flex items-center rounded-full bg-white/10 px-8 py-4 text-base font-medium text-white backdrop-blur-sm border border-white/20 transition-all duration-200 hover:bg-white/20 hover:border-white/30 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-black"
@@ -108,27 +119,7 @@ const HeroSection = ({ scrollY }: HeroSectionProps) => {
         </div>
       </div>
 
-      <div className="hero-image">
-        <Image
-          src="/BlenderBin-preview.svg"
-          alt="BlenderBin Preview"
-          width={1500}
-          height={800}
-          priority
-          quality={85}
-          placeholder="blur"
-          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwMCIgaGVpZ2h0PSI4MDAiIHZpZXdCb3g9IjAgMCAxNTAwIDgwMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE1MDAiIGhlaWdodD0iODAwIiBmaWxsPSIjMTExMTExIi8+Cjwvc3ZnPgo="
-          sizes="(max-width: 768px) 85vw, (max-width: 480px) 95vw, 1500px"
-          onError={(e) => {
-            console.log('BlenderBin preview image failed to load');
-            // Fallback to a placeholder if the main image fails
-            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwMCIgaGVpZ2h0PSI4MDAiIHZpZXdCb3g9IjAgMCAxNTAwIDgwMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE1MDAiIGhlaWdodD0iODAwIiBmaWxsPSIjMjIyMjIyIi8+CjwvcGF0aCBkPSJNNzUwIDI1MEMzNTAgMjUwIDEwMCA1MDAgMTAwIDgwMEg5MDBDOTAwIDUwMCA2NTAgMjUwIDc1MCAyNTBaIiBmaWxsPSIjNDQ0NDQ0Ii8+CjwvcGF0aCBkPSJNNzUwIDUwMEM2NTAgNTAwIDU1MCA2MDAgNTUwIDcwMEg5NTBDOTUwIDYwMCA4NTAgNTAwIDc1MCA1MDBaIiBmaWxsPSIjNjY2NjY2Ii8+CjwvcGF0aCBkPSJNNzUwIDM1MEM2NTAgMzUwIDU1MCA0NTAgNTUwIDU1MEg5NTBDOTUwIDQ1MCA4NTAgMzUwIDc1MCAzNTBaIiBmaWxsPSIjNTU1NTU1Ii8+Cjx0ZXh0IHg9Ijc1MCIgeT0iNDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5OTk5IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSI0OCI+QmxlbmRlckJpbiBQcmV2aWV3PC90ZXh0Pgo8L3N2Zz4K';
-          }}
-        />
-      </div>
-      {/* <div className="first-square">
-        
-      </div> */}
+      {/* Removed hero image; using background video instead */}
     </div>
   ); 
 };
