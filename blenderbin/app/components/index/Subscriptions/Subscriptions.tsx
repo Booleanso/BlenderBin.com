@@ -330,40 +330,14 @@ const Subscriptions = () => {
   };
 
   return (
-    <section id="subscriptions" className="relative bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black px-4 py-20">
+    <section id="subscriptions" className="relative bg-black px-4 py-20">
       {/* Content container */}
       <div className="relative mx-auto max-w-6xl">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-16">
-          <div className="text-center flex-1">
-            <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl mb-4">
-              Choose your
-              <span className="block bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                path.
-              </span>
-            </h2>
-            <p className="text-lg text-zinc-300 max-w-2xl mx-auto">
-              Select the plan that best fits your needs
-            </p>
-          </div>
-          {user && (
-            <button
-              onClick={handleRefreshStatus}
-              disabled={refreshing}
-              className="absolute top-0 right-0 px-3 py-2 text-xs bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 rounded-full border border-zinc-700/50 transition-all duration-200 backdrop-blur-sm disabled:opacity-50"
-              title="Refresh subscription status"
-            >
-              {refreshing ? '⟳ Refreshing...' : '⟳ Refresh'}
-            </button>
-          )}
-        </div>
-        
-        {/* Plans grid */}
-        <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
-          
-        {/* Free Plan */}
-          <div className="rounded-3xl border border-emerald-800/50 bg-gradient-to-br from-emerald-900/20 to-emerald-800/10 p-8 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:scale-[1.02]">
+        {/* Plans grid styled like addon cards */}
+        <div className="grid gap-6 md:grid-cols-3">
+           
+          {/* Free Plan */}
+          <div className="group rounded-3xl border border-emerald-800/50 bg-gradient-to-br from-emerald-900/20 to-emerald-800/10 p-8 backdrop-blur-sm transition-all duration-200 hover:border-emerald-700/50 hover:bg-emerald-900/10">
             <div className="text-center mb-8">
               <div className="inline-flex items-center rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-300 border border-emerald-500/30 mb-4">
                 Free Forever
@@ -382,22 +356,22 @@ const Subscriptions = () => {
                     <svg className="h-3 w-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-          </div>
+                  </div>
                   <span className="text-sm">{feature}</span>
                 </li>
-            ))}
-          </ul>
+              ))}
+            </ul>
             
-          <button 
-            onClick={handleDownloadRedirect}
+            <button 
+              onClick={handleDownloadRedirect}
               className="w-full rounded-full py-3 px-6 font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 hover:scale-105"
-          >
-            Download Now
-          </button>
-        </div>
-
-        {/* Monthly Plan */}
-          <div className={`rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:scale-[1.02] ${
+            >
+              Download Now
+            </button>
+          </div>
+ 
+          {/* Monthly Plan */}
+          <div className={`group rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:bg-zinc-900/40 ${
             getCurrentPlan() === 'monthly' ? 'ring-2 ring-blue-500/50' : ''
           }`}>
             <div className="text-center mb-8">
@@ -418,17 +392,17 @@ const Subscriptions = () => {
                     <svg className="h-3 w-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-          </div>
+                  </div>
                   <span className="text-sm">{feature}</span>
                 </li>
-            ))}
-          </ul>
+              ))}
+            </ul>
             
-          {renderActionButton(false)}
-        </div>
-
+            {renderActionButton(false)}
+          </div>
+ 
           {/* Yearly Plan - Featured */}
-          <div className={`rounded-3xl border border-purple-800/50 bg-gradient-to-br from-purple-900/20 to-blue-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-purple-700/50 hover:scale-[1.02] relative ${
+          <div className={`group rounded-3xl border border-purple-800/50 bg-gradient-to-br from-purple-900/20 to-blue-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-purple-700/50 hover:bg-purple-900/10 relative ${
             getCurrentPlan() === 'yearly' ? 'ring-2 ring-purple-500/50' : ''
           }`}>
             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -445,11 +419,11 @@ const Subscriptions = () => {
               </div>
               <div className="inline-flex items-center rounded-full bg-green-500/20 px-3 py-1 text-xs font-medium text-green-300 border border-green-500/30">
                 7-day free trial included
+              </div>
             </div>
-          </div>
             
             <ul className="space-y-3 mb-8">
-            {features.map((feature, index) => (
+              {features.map((feature, index) => (
                 <li key={index} className="flex items-center gap-3 text-zinc-300">
                   <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
                     <svg className="h-3 w-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,13 +432,13 @@ const Subscriptions = () => {
                   </div>
                   <span className="text-sm">{feature}</span>
                 </li>
-            ))}
-          </ul>
+              ))}
+            </ul>
             
-          {renderActionButton(true)}
+            {renderActionButton(true)}
           </div>
         </div>
-
+ 
         {/* Subtle background elements */}
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <div className="absolute top-1/4 left-0 h-96 w-96 rounded-full bg-emerald-500/3 blur-3xl" />
@@ -472,7 +446,7 @@ const Subscriptions = () => {
           <div className="absolute bottom-1/4 left-1/3 h-96 w-96 rounded-full bg-blue-500/3 blur-3xl" />
         </div>
       </div>
-
+ 
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent className="bg-zinc-900 border-zinc-800">
           <DialogHeader>

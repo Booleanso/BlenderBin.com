@@ -3,14 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '../../lib/firebase-client';
+import { auth, db } from '../../lib/firebase-client';
 import { ArrowLeft } from 'lucide-react';
 import Subscriptions from '../../components/index/Subscriptions/Subscriptions';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function BlenderBinPricingPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [totalOneOffCents, setTotalOneOffCents] = useState<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -20,6 +22,39 @@ export default function BlenderBinPricingPage() {
 
     return () => unsubscribe();
   }, []);
+
+  // Compute total one-off price of all add-ons (based on Firestore prices)
+  useEffect(() => {
+    const baseNameFromFilename = (filename: string) => filename.replace(/\.[^/.]+$/, '');
+    const formatSlug = (filename: string) => baseNameFromFilename(filename).toUpperCase();
+    (async () => {
+      try {
+        const res = await fetch('/api/addons');
+        const data = await res.json();
+        if (!data || !data.success || !Array.isArray(data.addons)) return;
+        const addons: any[] = data.addons;
+        const entries = await Promise.all(
+          addons.map(async (a: any) => {
+            const slug = formatSlug(a.filename);
+            try {
+              const snap = await getDoc(doc(db, 'addon_products', slug));
+              if (snap.exists()) {
+                const d: any = snap.data();
+                const amount = Number(d.amount) || 0;
+                return amount;
+              }
+            } catch {}
+            return 0;
+          })
+        );
+        const sum = entries.reduce((acc, n) => acc + (Number.isFinite(n) ? n : 0), 0);
+        setTotalOneOffCents(sum);
+      } catch {
+        // Silent fail; just omit the line if unavailable
+      }
+    })();
+  }, []);
+
 
   // Display loading spinner
   if (loading) {
@@ -33,7 +68,7 @@ export default function BlenderBinPricingPage() {
   }
 
   return (
-    <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black text-white">
+    <section className="relative min-h-screen bg-black text-white">
       {/* Header */}
       <div className="relative mx-auto max-w-6xl pt-24 pb-8 px-4">
         <div className="flex items-center mb-8">
@@ -60,37 +95,31 @@ export default function BlenderBinPricingPage() {
         </div>
       </div>
 
+      {/* Choice + plain benefits text (no boxes), placed right above subscriptions */}
+      <div className="relative mx-auto max-w-6xl px-4 -mt-2 mb-4 text-center">
+        <p className="text-base md:text-lg text-zinc-200">Choose how you want to get BlenderBin</p>
+        <p className="text-sm text-zinc-400 mt-1">
+          Subscribe to unlock everything, or buy individual add‑ons as you go
+          {typeof totalOneOffCents === 'number' && totalOneOffCents > 0 ? (
+            <>
+              {' '}(<span>all add‑ons individually ≈ </span>
+              <span className="font-medium text-zinc-200">${(totalOneOffCents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>)
+            </>
+          ) : null}.
+        </p>
+        <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:gap-6 justify-center text-sm text-zinc-300">
+          <span>🚀 Instant access</span>
+          <span>💰 7‑day free trial, cancel anytime</span>
+          <span>🔄 Always updated</span>
+        </div>
+      </div>
+
       {/* Subscriptions Component */}
       <Subscriptions />
 
       {/* Additional Information */}
       <div className="relative mx-auto max-w-6xl px-4 pb-16">
-        {/* Features section */}
-        <div className="grid gap-8 md:grid-cols-3 mb-20">
-          <div className="rounded-3xl border border-blue-800/50 bg-gradient-to-br from-blue-900/20 to-blue-800/10 p-8 backdrop-blur-sm text-center transition-all duration-200 hover:border-blue-700/50 hover:scale-[1.02]">
-            <div className="text-4xl mb-6">🚀</div>
-            <h3 className="text-xl font-semibold mb-4 text-white">Instant Access</h3>
-            <p className="text-zinc-300 leading-relaxed">
-              Start your free trial immediately and get access to all premium add-ons right away
-            </p>
-          </div>
-          
-          <div className="rounded-3xl border border-emerald-800/50 bg-gradient-to-br from-emerald-900/20 to-emerald-800/10 p-8 backdrop-blur-sm text-center transition-all duration-200 hover:border-emerald-700/50 hover:scale-[1.02]">
-            <div className="text-4xl mb-6">💰</div>
-            <h3 className="text-xl font-semibold mb-4 text-white">No Risk</h3>
-            <p className="text-zinc-300 leading-relaxed">
-              7-day free trial with no commitment. Cancel anytime during or after the trial
-            </p>
-          </div>
-          
-          <div className="rounded-3xl border border-purple-800/50 bg-gradient-to-br from-purple-900/20 to-purple-800/10 p-8 backdrop-blur-sm text-center transition-all duration-200 hover:border-purple-700/50 hover:scale-[1.02]">
-            <div className="text-4xl mb-6">🔄</div>
-            <h3 className="text-xl font-semibold mb-4 text-white">Always Updated</h3>
-            <p className="text-zinc-300 leading-relaxed">
-              Get weekly updates and new add-ons automatically included in your subscription
-            </p>
-          </div>
-        </div>
+        {/* (Removed colored feature boxes; concise benefits moved above subscriptions) */}
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto mb-20">
@@ -101,7 +130,7 @@ export default function BlenderBinPricingPage() {
           </div>
           
           <div className="space-y-6">
-            <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50">
+            <div className="rounded-3xl p-8">
               <h3 className="font-semibold mb-4 text-white text-lg">How does the free trial work?</h3>
               <p className="text-zinc-300 leading-relaxed">
                 You get immediate access to all BlenderBin add-ons for 7 days completely free. 
@@ -110,7 +139,7 @@ export default function BlenderBinPricingPage() {
               </p>
             </div>
             
-            <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50">
+            <div className="rounded-3xl p-8">
               <h3 className="font-semibold mb-4 text-white text-lg">Can I cancel anytime?</h3>
               <p className="text-zinc-300 leading-relaxed">
                 Yes! You can cancel your subscription at any time from your profile settings. 
@@ -118,7 +147,7 @@ export default function BlenderBinPricingPage() {
               </p>
             </div>
             
-            <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50">
+            <div className="rounded-3xl p-8">
               <h3 className="font-semibold mb-4 text-white text-lg">What's included in the subscription?</h3>
               <p className="text-zinc-300 leading-relaxed">
                 Full access to all current and future Blender add-ons, weekly updates, 
@@ -144,12 +173,7 @@ export default function BlenderBinPricingPage() {
           </div>
         </div>
 
-        {/* Subtle background elements */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute top-1/4 left-0 h-96 w-96 rounded-full bg-blue-500/3 blur-3xl" />
-          <div className="absolute top-1/2 right-0 h-96 w-96 rounded-full bg-emerald-500/3 blur-3xl" />
-          <div className="absolute bottom-1/4 left-1/3 h-96 w-96 rounded-full bg-purple-500/3 blur-3xl" />
-        </div>
+        {/* Removed inner glow/spotlight background elements for a flat look */}
       </div>
     </section>
   );
