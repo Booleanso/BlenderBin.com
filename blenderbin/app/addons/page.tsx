@@ -608,6 +608,20 @@ export default function AddonsPage() {
                 </div>
               </div>
 
+              {/* Price in modal header */}
+              <div className="flex items-center justify-end">
+                <div className="text-sm text-zinc-200 font-medium px-3 py-1 rounded-full border border-zinc-700 bg-zinc-900/60">
+                  {(() => {
+                    const slug = baseNameFromFilename(selectedAddon.filename).toUpperCase();
+                    const p = priceMap[slug];
+                    if (!p || !p.amount) return '—';
+                    const dollars = (p.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const curr = (p.currency || 'usd').toUpperCase();
+                    return `${curr === 'USD' ? '$' : ''}${dollars}${curr !== 'USD' ? ' ' + curr : ''}`;
+                  })()}
+                </div>
+              </div>
+
               <p className="text-zinc-300 text-sm leading-relaxed mb-4">
                 {selectedAddon.description}
               </p>
@@ -634,6 +648,15 @@ export default function AddonsPage() {
                 className="flex-1 rounded-full bg-zinc-900 text-white border border-zinc-700 hover:bg-zinc-800 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
               >
                 Buy This Addon
+                {(() => {
+                  const slug = baseNameFromFilename(selectedAddon.filename).toUpperCase();
+                  const p = priceMap[slug];
+                  if (!p || !p.amount) return null;
+                  const dollars = (p.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  const curr = (p.currency || 'usd').toUpperCase();
+                  const label = `${curr === 'USD' ? '$' : ''}${dollars}${curr !== 'USD' ? ' ' + curr : ''}`;
+                  return <span className="ml-2 text-zinc-300">— {label}</span>;
+                })()}
               </button>
             </div>
           </div>
