@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Customers and Stripe-related
+    match /customers/{uid} {
+      allow read: if request.auth.uid == uid;
+      match /checkout_sessions/{id} { allow read, write: if request.auth.uid == uid; }
+      match /subscriptions/{id} { allow read: if request.auth.uid == uid; }
+      match /payments/{id} { allow read: if request.auth.uid == uid; }
+    }
+
+    match /products/{id} {
+      allow read: if true;
+      match /prices/{id} { allow read: if true; }
+      match /tax_rates/{id} { allow read: if true; }
+    }
+
+    // Addon prices (public read, no writes from clients)
+    match /addon_products/{slug} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Rooms
+    match /rooms/{roomId} { allow read, write: if request.auth != null; }
+
+    // API usage analytics
+    match /api_usage/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /api_sessions/{sessionId} {
+      allow read: if resource.data.user_id == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /analytics/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /usage_tracking/{docId} {
+      allow read: if docId.split('_')[0] == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /usage_events/{eventId} {
+      allow read: if resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /usage_charges/{chargeId} {
+      allow read: if resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read, update, create: if request.auth.uid == userId;
+    }
+  }
+}

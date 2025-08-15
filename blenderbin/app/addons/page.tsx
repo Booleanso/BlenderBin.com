@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Download, User, Calendar, Tag, Package, ExternalLink } from 'lucide-react';
 import { auth } from '../lib/firebase-client';
+import { db } from '../lib/firebase-client';
+import { doc, getDoc } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 
 interface AddonMetadata {
@@ -38,6 +40,9 @@ export default function AddonsPage() {
   const [selectedTier, setSelectedTier] = useState<string>('All');
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAddon, setSelectedAddon] = useState<AddonMetadata | null>(null);
+  const [priceMap, setPriceMap] = useState<Record<string, { amount: number; currency: string }>>({});
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -51,6 +56,49 @@ export default function AddonsPage() {
   useEffect(() => {
     fetchAddons();
   }, []);
+
+  // Fetch prices for each addon from Firestore: collection `addon_products` with doc IDs as UPPERCASE slugs
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const entries = await Promise.all(
+          addons.map(async (a) => {
+            const slug = baseNameFromFilename(a.filename).toUpperCase();
+            const snap = await getDoc(doc(db, 'addon_products', slug));
+            if (snap.exists()) {
+              const data: any = snap.data();
+              const amount = Number(data.amount) || 0;
+              const currency = (data.currency || 'usd') as string;
+              return [slug, { amount, currency }];
+            }
+            return [slug, { amount: 0, currency: 'usd' }];
+          })
+        );
+        const map: Record<string, { amount: number; currency: string }> = {};
+        entries.forEach(([k, v]) => {
+          map[k as string] = v as { amount: number; currency: string };
+        });
+        setPriceMap(map);
+      } catch (err) {
+        console.error('Error fetching addon prices:', err);
+      }
+    };
+    if (addons.length) fetchPrices();
+  }, [addons]);
+
+  // Open modal if URL hash references an addon slug
+  useEffect(() => {
+    if (!addons.length) return;
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash && hash.startsWith('#')) {
+      const targetSlug = decodeURIComponent(hash.slice(1)).toLowerCase();
+      const match = addons.find(a => baseNameFromFilename(a.filename).toLowerCase() === targetSlug);
+      if (match) {
+        setSelectedAddon(match);
+        setIsModalOpen(true);
+      }
+    }
+  }, [addons]);
 
   // Handle post-purchase redirect to auto-download
   useEffect(() => {
@@ -130,6 +178,23 @@ export default function AddonsPage() {
   };
 
   const baseNameFromFilename = (filename: string) => filename.replace(/\.[^/.]+$/, '');
+
+  const openAddonModal = (addon: AddonMetadata) => {
+    setSelectedAddon(addon);
+    setIsModalOpen(true);
+    const slug = baseNameFromFilename(addon.filename);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${encodeURIComponent(slug)}`);
+    }
+  };
+
+  const closeAddonModal = () => {
+    setIsModalOpen(false);
+    setSelectedAddon(null);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+  };
 
   const handleSubscribe = async (addon: AddonMetadata) => {
     // Send users to the BlenderBin trial/subscription
@@ -291,10 +356,11 @@ export default function AddonsPage() {
             {filteredAddons.map((addon, index) => (
               <div
                 key={addon.filename}
-                className="rounded-3xl border border-zinc-800/50 bg-zinc-900 p-6 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:bg-zinc-900/80 hover:scale-[1.02] flex flex-col h-full"
+                className="group rounded-3xl border border-zinc-800/50 bg-zinc-900 p-6 backdrop-blur-sm transition-all duration-200 hover:border-zinc-700/50 hover:bg-zinc-900/80 hover:scale-[1.02] flex flex-col h-full cursor-pointer max-h-[28rem] md:max-h-[32rem] overflow-hidden"
                 style={{
                   animationDelay: `${index * 100}ms`,
                 }}
+                onClick={() => openAddonModal(addon)}
               >
                 {/* Addon Media */}
                 <div className="mb-4 rounded-2xl overflow-hidden border border-zinc-800/60 bg-black">
@@ -339,8 +405,17 @@ export default function AddonsPage() {
                         </span>
                       </div>
                     </div>
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-zinc-800/60`}>
-                      <Package className={`h-5 w-5 text-zinc-200`} />
+                    <div className="flex items-center">
+                      <div className="text-sm text-zinc-200 font-medium px-3 py-1 rounded-full border border-zinc-700 bg-zinc-900/60">
+                        {(() => {
+                          const slug = baseNameFromFilename(addon.filename).toUpperCase();
+                          const p = priceMap[slug];
+                          if (!p || !p.amount) return '—';
+                          const dollars = (p.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                          const curr = (p.currency || 'usd').toUpperCase();
+                          return `${curr === 'USD' ? '$' : ''}${dollars}${curr !== 'USD' ? ' ' + curr : ''}`;
+                        })()}
+                      </div>
                     </div>
                   </div>
                   
@@ -373,20 +448,12 @@ export default function AddonsPage() {
                   </div>
                 </div>
 
-                {/* Actions - Subscribe and Buy */}
-                <div className="flex gap-3 mt-auto">
-                  <button 
-                    onClick={() => handleSubscribe(addon)}
-                    className="flex-1 rounded-full bg-white text-black hover:bg-zinc-100 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
-                  >
-                    Subscribe
-                  </button>
-                  <button 
-                    onClick={() => handleBuyAddon(addon)}
-                    className="flex-1 rounded-full bg-zinc-900 text-white border border-zinc-700 hover:bg-zinc-800 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
-                  >
-                    Buy This Addon
-                  </button>
+                {/* Subtle nudge to open card (psychology, not obvious) */}
+                <div className="mt-auto text-right">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500/60 group-hover:text-zinc-300/80 transition-colors">
+                    Explore details
+                    <svg className="h-3 w-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                  </span>
                 </div>
               </div>
             ))}
@@ -486,6 +553,92 @@ export default function AddonsPage() {
           <div className="absolute bottom-1/4 left-1/3 h-96 w-96 rounded-full bg-emerald-500/3 blur-3xl" />
         </div>
       </div>
+
+      {/* Modal overlay for selected addon */}
+      {isModalOpen && selectedAddon && (
+        <div
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={closeAddonModal}
+        >
+          <div
+            className="relative w-[92vw] max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-800/60 bg-zinc-900 p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Media */}
+            <div className="mb-4 rounded-2xl overflow-hidden border border-zinc-800/60 bg-black">
+              <video
+                className="w-full h-[36vh] md:h-[42vh] object-cover"
+                src={`/addons/${baseNameFromFilename(selectedAddon.filename)}.mp4`}
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls
+                onError={(e) => {
+                  (e.currentTarget as HTMLVideoElement).style.display = 'none';
+                }}
+              />
+            </div>
+
+            {/* Header */}
+            <div className="mb-3">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-2xl font-semibold text-white leading-tight">
+                      {selectedAddon.name}
+                    </h3>
+                    {selectedAddon.tier === 'premium' && (
+                      <span className="px-2 py-1 text-xs bg-zinc-800/50 text-zinc-200 rounded-full border border-zinc-700 font-medium">
+                        PRO
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-1 text-xs bg-zinc-800/50 text-zinc-200 rounded-full border border-zinc-700">
+                      v{selectedAddon.version}
+                    </span>
+                    <span className="px-2 py-1 text-xs bg-zinc-800/50 text-zinc-200 rounded-full border border-zinc-700">
+                      {selectedAddon.category}
+                    </span>
+                    <span className={`px-2 py-1 text-xs rounded-full border font-medium bg-zinc-800/50 text-zinc-200 border-zinc-700`}>
+                      {selectedAddon.tier === 'free' ? 'FREE' : 'PREMIUM'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-zinc-300 text-sm leading-relaxed mb-4">
+                {selectedAddon.description}
+              </p>
+            </div>
+
+            {/* Meta */}
+            <div className="grid grid-cols-2 gap-3 text-xs text-zinc-400 mb-6">
+              <div className="flex items-center gap-2"><User className="h-3 w-3" /><span>by {selectedAddon.author}</span></div>
+              <div className="flex items-center gap-2"><Tag className="h-3 w-3" /><span>Blender {selectedAddon.blenderVersion}+</span></div>
+              <div className="flex items-center gap-2"><Calendar className="h-3 w-3" /><span>Updated {formatDate(selectedAddon.lastModified)}</span></div>
+              <div className="flex items-center gap-2"><Download className="h-3 w-3" /><span>{formatFileSize(selectedAddon.size)}</span></div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleSubscribe(selectedAddon); }}
+                className="flex-1 rounded-full bg-white text-black hover:bg-zinc-100 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
+              >
+                Subscribe
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleBuyAddon(selectedAddon); }}
+                className="flex-1 rounded-full bg-zinc-900 text-white border border-zinc-700 hover:bg-zinc-800 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
+              >
+                Buy This Addon
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 } 
