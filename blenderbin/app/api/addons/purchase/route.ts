@@ -27,21 +27,51 @@ export async function POST(request: NextRequest) {
     const desiredAmount: number = Number.isFinite(docData.amount) ? docData.amount : 1000;
     const desiredCurrency: string = typeof docData.currency === 'string' ? docData.currency : 'usd';
 
-    if (!productId) {
+    // Helper to detect missing-resource errors when switching between test/live
+    const isMissingResourceError = (err: any): boolean => {
+      const message = (err && err.message) || '';
+      const code = (err && err.code) || '';
+      return (
+        code === 'resource_missing' ||
+        message.includes('No such product') ||
+        message.includes('No such price')
+      );
+    };
+
+    // Helper to (re)create both product and price in the current Stripe mode
+    const createFreshProductAndPrice = async () => {
       const product = await stripe.products.create({
         name: addonName,
         metadata: { addonSlug }
       });
-      productId = product.id;
-    }
-
-    if (!priceId) {
       const price = await stripe.prices.create({
         unit_amount: desiredAmount,
         currency: desiredCurrency,
-        product: productId
+        product: product.id
       });
+      productId = product.id;
       priceId = price.id;
+    };
+
+    if (!productId) {
+      await createFreshProductAndPrice();
+    }
+
+    if (!priceId) {
+      try {
+        const price = await stripe.prices.create({
+          unit_amount: desiredAmount,
+          currency: desiredCurrency,
+          product: productId!
+        });
+        priceId = price.id;
+      } catch (err) {
+        if (isMissingResourceError(err)) {
+          await createFreshProductAndPrice();
+        } else {
+          throw err;
+        }
+      }
     } else {
       // Ensure the cached price matches desired amount/currency; otherwise create a new one
       try {
@@ -49,30 +79,46 @@ export async function POST(request: NextRequest) {
         const amountMatches = existingPrice.unit_amount === desiredAmount;
         const currencyMatches = existingPrice.currency === desiredCurrency;
         if (!amountMatches || !currencyMatches) {
-          const newPrice = await stripe.prices.create({
-            unit_amount: desiredAmount,
-            currency: desiredCurrency,
-            product: productId
-          });
-          priceId = newPrice.id;
+          try {
+            const newPrice = await stripe.prices.create({
+              unit_amount: desiredAmount,
+              currency: desiredCurrency,
+              product: productId!
+            });
+            priceId = newPrice.id;
+          } catch (err) {
+            if (isMissingResourceError(err)) {
+              await createFreshProductAndPrice();
+            } else {
+              throw err;
+            }
+          }
 
           // Optionally deactivate the old price for cleanliness
           if (existingPrice.active) {
             try { await stripe.prices.update(existingPrice.id, { active: false }); } catch {}
           }
         }
-      } catch {
-        // If retrieval fails, create a fresh price
-        const fallbackPrice = await stripe.prices.create({
-          unit_amount: desiredAmount,
-          currency: desiredCurrency,
-          product: productId
-        });
-        priceId = fallbackPrice.id;
+      } catch (err) {
+        // If retrieval fails, try to create a new price; if the product is missing (test/live switch), recreate both
+        try {
+          const fallbackPrice = await stripe.prices.create({
+            unit_amount: desiredAmount,
+            currency: desiredCurrency,
+            product: productId!
+          });
+          priceId = fallbackPrice.id;
+        } catch (innerErr) {
+          if (isMissingResourceError(innerErr)) {
+            await createFreshProductAndPrice();
+          } else {
+            throw innerErr;
+          }
+        }
       }
     }
 
-    // Persist mapping
+    // Persist mapping (always save in case we recreated IDs in LIVE mode)
     await productDocRef.set({
       stripeProductId: productId,
       stripePriceId: priceId,
