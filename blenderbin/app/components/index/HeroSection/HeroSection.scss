@@ -61,14 +61,14 @@
     }
 
     .hero-title-container{ 
-        position: absolute; /* pin to top-left */
+        position: absolute; /* pin to bottom-left */
         display: flex;
         flex-direction: column;
         align-items: flex-start;   /* left align */
         justify-content: flex-start;
         width: auto;
         height: auto;
-        top: 2rem;
+        bottom: 12rem;
         left: 2rem;
         padding: 0; /* spacing controlled by top/left */
         z-index: 4;
