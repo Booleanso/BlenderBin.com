@@ -37,6 +37,7 @@ setPersistence(auth, browserLocalPersistence)
 function SignupPageContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const redirectUri = searchParams.get('redirect_uri');
   const router = useRouter();
   
   const [email, setEmail] = useState('');
@@ -122,8 +123,12 @@ function SignupPageContent() {
       
       // If user is authenticated
       if (currentUser) {
+        // Prefer redirect flow if redirect_uri exists
+        if (redirectUri) {
+          redirectWithIdToken(currentUser);
+        }
         // If session ID exists, we're being opened from Blender addon
-        if (sessionId && !success) {
+        else if (sessionId && !success) {
           sendTokenToAddon(currentUser);
         } 
         // If no session ID and not already in the animation state, this is a web login
@@ -151,7 +156,7 @@ function SignupPageContent() {
     return () => {
       unsubscribe();
     };
-  }, [sessionId, router, animating, success]);
+  }, [sessionId, redirectUri, router, animating, success]);
   
   // Send auth token to Blender addon through our API
   const sendTokenToAddon = async (currentUser: User) => {
@@ -200,6 +205,21 @@ function SignupPageContent() {
       setMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
+
+  // Redirect the browser to the provided redirect_uri with the Firebase ID token appended
+  const redirectWithIdToken = async (currentUser: User) => {
+    try {
+      if (!redirectUri) return;
+      console.log('Redirecting to provided redirect_uri with id_token');
+      const idToken = await currentUser.getIdToken(true);
+      const target = new URL(redirectUri);
+      target.searchParams.set('id_token', idToken);
+      window.location.assign(target.toString());
+    } catch (error) {
+      console.error('Failed to redirect with id_token:', error);
+      setMessage(`Error: ${error instanceof Error ? error.message : 'Redirect failed'}`);
+    }
+  };
   
   // Handle email/password login
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -212,17 +232,23 @@ function SignupPageContent() {
       if (authMode === 'login') {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log("Signed in with email:", userCredential.user.email);
-        
+        // If redirect_uri provided, prefer redirect with id token
+        if (redirectUri && auth.currentUser) {
+          await redirectWithIdToken(auth.currentUser);
+        }
         // If no session ID, redirect to dashboard (not from Blender)
-        if (!sessionId) {
+        else if (!sessionId) {
           router.push('/pricing');
         }
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         console.log("Created account with email:", userCredential.user.email);
-        
+        // If redirect_uri provided, prefer redirect with id token
+        if (redirectUri && auth.currentUser) {
+          await redirectWithIdToken(auth.currentUser);
+        }
         // If no session ID, redirect to dashboard (not from Blender)
-        if (!sessionId) {
+        else if (!sessionId) {
           router.push('/pricing');
         }
       }
@@ -248,8 +274,12 @@ function SignupPageContent() {
         const result = await signInWithPopup(auth, googleProvider);
         console.log("Google sign-in successful with popup:", result.user.email);
         
+        // Prefer redirect flow if redirect_uri exists
+        if (redirectUri && result.user) {
+          await redirectWithIdToken(result.user);
+        }
         // If session ID exists, send token to Blender addon
-        if (sessionId) {
+        else if (sessionId) {
           await sendTokenToAddon(result.user);
         } else {
           // If no session ID, redirect to dashboard

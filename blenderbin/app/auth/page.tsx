@@ -20,6 +20,7 @@ const googleProvider = new GoogleAuthProvider();
 function AuthPageContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const redirectUri = searchParams.get('redirect_uri');
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,14 +36,19 @@ function AuthPageContent() {
       setUser(currentUser);
       setLoading(false);
       
-      // If user is already logged in, send token to Blender addon
+      // If user is logged in and a redirect_uri was provided, prefer redirect with id_token
+      if (currentUser && redirectUri) {
+        redirectWithIdToken(currentUser);
+        return;
+      }
+      // Otherwise, fall back to legacy session-based callback flow
       if (currentUser && sessionId) {
         sendTokenToAddon(currentUser);
       }
     });
     
     return () => unsubscribe();
-  }, [sessionId]);
+  }, [sessionId, redirectUri]);
   
   // Send auth token to Blender addon through our API
   const sendTokenToAddon = async (currentUser: User) => {
@@ -88,6 +94,21 @@ function AuthPageContent() {
       setMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
+
+  // Redirect the browser to the provided redirect_uri with the Firebase ID token appended
+  const redirectWithIdToken = async (currentUser: User) => {
+    try {
+      if (!redirectUri) return;
+      const idToken = await currentUser.getIdToken(true);
+      const target = new URL(redirectUri);
+      target.searchParams.set('id_token', idToken);
+      // Some clients accept 'token' as well; keeping primary 'id_token' per spec
+      window.location.assign(target.toString());
+    } catch (error) {
+      console.error('Failed to redirect with id_token:', error);
+      setMessage(`Error: ${error instanceof Error ? error.message : 'Redirect failed'}`);
+    }
+  };
   
   // Handle email/password login
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -101,7 +122,12 @@ function AuthPageContent() {
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
       }
-      // Auth state change will trigger sendTokenToAddon
+      // After sign-in, prefer redirect flow if redirect_uri is present
+      if (auth.currentUser && redirectUri) {
+        await redirectWithIdToken(auth.currentUser);
+        return;
+      }
+      // Otherwise auth state change will trigger legacy flow
     } catch (error) {
       console.error('Error during authentication:', error);
       setMessage(`Error: ${error instanceof Error ? error.message : 'Authentication failed'}`);
@@ -115,7 +141,12 @@ function AuthPageContent() {
       setLoading(true);
       setMessage('');
       await signInWithPopup(auth, googleProvider);
-      // Auth state change will trigger sendTokenToAddon
+      // After sign-in, prefer redirect flow if redirect_uri is present
+      if (auth.currentUser && redirectUri) {
+        await redirectWithIdToken(auth.currentUser);
+        return;
+      }
+      // Otherwise auth state change will trigger legacy flow
     } catch (error) {
       console.error('Error during Google authentication:', error);
       setMessage(`Error: ${error instanceof Error ? error.message : 'Google authentication failed'}`);
