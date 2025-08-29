@@ -1,0 +1,123 @@
+type WelcomeArgs = {
+  name?: string | null;
+  plan: 'monthly' | 'yearly' | 'pro' | 'business' | string;
+  trialEndDate?: Date | null;
+  downloadUrl: string;
+  manageUrl?: string;
+  supportUrl?: string;
+};
+
+function formatDate(d?: Date | null): string | null {
+  if (!d) return null;
+  try {
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+export function welcomeBlenderBinHTML({ name, plan, trialEndDate, downloadUrl, manageUrl, supportUrl }: WelcomeArgs): string {
+  const firstName = (name || '').split(' ')[0] || 'there';
+  const trialText = trialEndDate ? `Your free trial ends on ${formatDate(trialEndDate)}.` : '';
+  const safeManageUrl = manageUrl || 'https://blenderbin.com/dashboard/billing';
+  const safeSupportUrl = supportUrl || 'https://blenderbin.com/support';
+  const logoUrl = 'https://blenderbin.com/blenderbinlogo.png';
+
+  return `
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Welcome to BlenderBin</title>
+  <style>
+    body { margin:0; padding:0; background-color:#0b0b12; }
+    table { border-collapse:collapse; }
+    img { border:0; outline:none; text-decoration:none; display:block; max-width:100%; height:auto; }
+    a { text-decoration:none; }
+    .container { width:100%; background: linear-gradient(180deg,#0b0b12 0%, #0e1224 100%); }
+    .content { max-width:640px; margin:0 auto; color:#e6e6f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .card { background:#121527; border:1px solid rgba(255,255,255,0.06); border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.35); }
+    .h1 { font-size:28px; line-height:1.25; margin:0; letter-spacing:0.2px; }
+    .muted { color:#a1a7c7; }
+    .btn { display:inline-block; padding:14px 22px; background:#6c7cff; color:#fff; border-radius:10px; font-weight:700; }
+    .btn:hover { filter: brightness(1.05); }
+    .pill { display:inline-block; padding:8px 14px; background:rgba(108,124,255,0.14); border:1px solid rgba(108,124,255,0.35); color:#cfd5ff; border-radius:999px; font-size:12px; letter-spacing:0.3px; }
+    .footer-link { color:#9aa0bf; }
+    @media (max-width: 640px) { .px { padding-left:20px !important; padding-right:20px !important; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="content px" style="padding:32px 32px 40px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+        <tr>
+          <td align="left">
+            <img src="${logoUrl}" alt="BlenderBin" width="40" height="40" style="border-radius:8px;" />
+          </td>
+          <td align="right">
+            <span class="pill">${plan.toString().toUpperCase()} PLAN</span>
+          </td>
+        </tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card">
+        <tr>
+          <td style="padding:32px 28px 8px;">
+            <h1 class="h1">Welcome aboard, ${firstName} 👋</h1>
+            <p class="muted" style="margin:10px 0 0; font-size:15px;">
+              Thanks for subscribing to BlenderBin. You now have full access to our premium Blender add-ons, resources, and updates.
+            </p>
+            ${trialText ? `<p class="muted" style="margin:8px 0 0; font-size:14px;">${trialText}</p>` : ''}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 28px 24px;">
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td>
+                  <a href="${downloadUrl}" class="btn" target="_blank" rel="noopener">Download BlenderBin</a>
+                </td>
+                <td width="12"></td>
+                <td>
+                  <a href="${safeManageUrl}" class="btn" style="background:#23294b; color:#e6e6f0;" target="_blank" rel="noopener">Manage billing</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 28px 28px;">
+            <table role="presentation" width="100%" style="background:linear-gradient(180deg, rgba(108,124,255,0.08), rgba(108,124,255,0)); border:1px dashed rgba(108,124,255,0.35); border-radius:12px;" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:18px 18px;">
+                  <p style="margin:0; font-size:14px; color:#cfd5ff;">
+                    Tip: Keep this email handy — it has quick links to download and manage your subscription.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;">
+        <tr>
+          <td>
+            <p class="muted" style="font-size:12px; line-height:1.6; margin:0;">
+              Need help? Visit <a class="footer-link" href="${safeSupportUrl}" target="_blank" rel="noopener">Support</a> or reply to this email.
+              <br />
+              © ${new Date().getFullYear()} BlenderBin. All rights reserved.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+

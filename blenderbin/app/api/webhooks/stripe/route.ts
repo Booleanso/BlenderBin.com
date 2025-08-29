@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '../../../lib/stripe';
 import { db } from '../../../lib/firebase-admin';
 import { Readable } from 'stream';
+import { sendEmail } from '../../../lib/email';
+import { welcomeBlenderBinHTML } from '../../../lib/email-templates/welcomeBlenderBin';
 
 // BlenderBin price IDs
 const BLENDERBIN_PRICE_IDS = [
@@ -173,6 +175,11 @@ async function handleSubscriptionCreated(subscription: any) {
     }
     
     const userId = customerQuery.docs[0].id;
+
+    // Fetch user record for name/email
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {} as any;
+    const profileEmail = userData?.email;
     
     // Determine subscription type and tier based on price
     const priceId = subscription.items.data[0]?.price?.id;
@@ -271,6 +278,49 @@ async function handleSubscriptionCreated(subscription: any) {
     }
     
     console.log(`Created ${productType} subscription ${subscriptionId} for user ${userId} with tier ${tier}`);
+
+    // Send welcome email only for BlenderBin
+    if (productType === 'blenderbin') {
+      // Idempotency: ensure we send once per subscription
+      const sentDocRef = db.collection('customers').doc(userId).collection('emails_sent').doc(`welcome_${subscriptionId}`);
+      const sentDoc = await sentDocRef.get();
+      if (!sentDoc.exists) {
+        // Determine recipient email: prefer Stripe customer email, then profile/email
+        let toEmail: string | null = null;
+        try {
+          const stripeCustomer = await stripe.customers.retrieve(customerId);
+          // @ts-ignore - Stripe types
+          toEmail = (stripeCustomer && 'email' in stripeCustomer) ? (stripeCustomer as any).email : null;
+        } catch {}
+        if (!toEmail) toEmail = profileEmail || userData?.email;
+
+        if (toEmail) {
+          const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : null;
+          const manageUrl = `https://blenderbin.com/dashboard/billing`;
+          const downloadUrl = `https://blenderbin.com/download`;
+          const html = welcomeBlenderBinHTML({
+            name: userData?.displayName || userData?.name || null,
+            plan: tier,
+            trialEndDate: trialEnd,
+            downloadUrl,
+            manageUrl,
+            supportUrl: 'https://blenderbin.com/support'
+          });
+          const subject = 'Welcome to BlenderBin — let’s get you set up';
+          const result = await sendEmail({ to: toEmail, subject, html });
+          if (result) {
+            await sentDocRef.set({ sentAt: new Date(), email: toEmail, subject });
+            console.log(`Sent welcome email to ${toEmail} for subscription ${subscriptionId}`);
+          } else {
+            console.warn(`Welcome email not sent (provider issue) for user ${userId}`);
+          }
+        } else {
+          console.warn(`No email found to send welcome email for user ${userId}`);
+        }
+      } else {
+        console.log(`Welcome email already sent for subscription ${subscriptionId}`);
+      }
+    }
   } catch (error) {
     console.error('Error handling subscription created:', error);
   }
