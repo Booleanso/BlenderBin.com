@@ -29,6 +29,8 @@ function AuthPageContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState(false);
+  const [deeplinkUrl, setDeeplinkUrl] = useState<string | null>(null);
+  const [needsUserAction, setNeedsUserAction] = useState(false);
   
   // Check auth state on load
   useEffect(() => {
@@ -102,8 +104,15 @@ function AuthPageContent() {
       const idToken = await currentUser.getIdToken(true);
       const target = new URL(redirectUri);
       target.searchParams.set('id_token', idToken);
-      // Some clients accept 'token' as well; keeping primary 'id_token' per spec
-      window.location.assign(target.toString());
+      // If target is http/https, we can safely auto-redirect. For custom schemes (e.g., blenderbin://),
+      // Safari requires a user gesture to navigate. In that case, show a button for the user to click.
+      if (target.protocol === 'http:' || target.protocol === 'https:') {
+        window.location.assign(target.toString());
+      } else {
+        setDeeplinkUrl(target.toString());
+        setNeedsUserAction(true);
+        setMessage('Tap the button below to open Blender and complete sign-in.');
+      }
     } catch (error) {
       console.error('Failed to redirect with id_token:', error);
       setMessage(`Error: ${error instanceof Error ? error.message : 'Redirect failed'}`);
@@ -209,6 +218,27 @@ function AuthPageContent() {
           <p className="text-center text-gray-400 text-sm mt-4">
             This window will close automatically in a few seconds.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have a custom-scheme deeplink that needs a user gesture, prompt the user to click
+  if (user && deeplinkUrl && needsUserAction) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+        <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center">
+          <h1 className="text-2xl font-bold mb-4">Open in Blender</h1>
+          <p className="text-gray-600 mb-6">You're signed in. To finish connecting, open Blender.</p>
+          <button
+            onClick={() => { if (deeplinkUrl) window.location.href = deeplinkUrl; }}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
+          >
+            Open in Blender
+          </button>
+          {message && (
+            <p className="mt-4 text-center text-gray-500">{message}</p>
+          )}
         </div>
       </div>
     );

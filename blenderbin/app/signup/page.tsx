@@ -50,6 +50,8 @@ function SignupPageContent() {
   const [success, setSuccess] = useState(false);
   const [animating, setAnimating] = useState(false); // Track animation state
   const [formOpacity, setFormOpacity] = useState('opacity-100'); // Control form opacity
+  const [deeplinkUrl, setDeeplinkUrl] = useState<string | null>(null);
+  const [needsUserAction, setNeedsUserAction] = useState(false);
 
   // Debug function
   const debugAuthState = () => {
@@ -214,7 +216,14 @@ function SignupPageContent() {
       const idToken = await currentUser.getIdToken(true);
       const target = new URL(redirectUri);
       target.searchParams.set('id_token', idToken);
-      window.location.assign(target.toString());
+      // Auto-redirect only for http/https. For custom schemes, require a user gesture (Safari).
+      if (target.protocol === 'http:' || target.protocol === 'https:') {
+        window.location.assign(target.toString());
+      } else {
+        setDeeplinkUrl(target.toString());
+        setNeedsUserAction(true);
+        setMessage('Tap the button below to open Blender and complete sign-in.');
+      }
     } catch (error) {
       console.error('Failed to redirect with id_token:', error);
       setMessage(`Error: ${error instanceof Error ? error.message : 'Redirect failed'}`);
@@ -399,7 +408,7 @@ function SignupPageContent() {
   }
   
   // Display already logged in screen
-  if (user) {
+  if (user && !(deeplinkUrl && needsUserAction)) {
     return (
       <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black">
         <div className="flex items-center justify-center min-h-screen px-4">
@@ -431,6 +440,35 @@ function SignupPageContent() {
               {message && (
                 <div className="mt-6 rounded-2xl bg-red-900/20 border border-red-800/50 p-4">
                   <p className="text-sm text-red-400">{message}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // If we need a user gesture for a custom scheme, present a button
+  if (user && deeplinkUrl && needsUserAction) {
+    return (
+      <section className="relative min-h-screen bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black">
+        <div className="flex items-center justify-center min-h-screen px-4">
+          <div className="w-full max-w-md">
+            <div className="rounded-3xl border border-zinc-800/50 bg-zinc-900/20 p-8 backdrop-blur-sm text-center">
+              <h1 className="text-2xl font-semibold tracking-tight text-white mb-4">
+                Open in Blender
+              </h1>
+              <p className="text-zinc-300 mb-8">You're signed in. To finish connecting, open Blender.</p>
+              <button
+                onClick={() => { if (deeplinkUrl) window.location.href = deeplinkUrl; }}
+                className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 font-medium transition-all duration-200 hover:scale-105"
+              >
+                Open in Blender
+              </button>
+              {message && (
+                <div className="mt-6 rounded-2xl bg-zinc-800/30 border border-zinc-700/50 p-4">
+                  <p className="text-sm text-zinc-300">{message}</p>
                 </div>
               )}
             </div>
