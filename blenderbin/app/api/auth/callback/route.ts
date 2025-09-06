@@ -17,8 +17,8 @@ if (!getApps().length) {
 const db = getFirestore();
 const auth = getAuth();
 
-// In-memory session storage (this would be a database in production)
-const sessionTokens: Record<string, any> = {};
+// Persist session tokens in Firestore to survive serverless cold starts
+// Collection: auth_sessions/{session_id} → { token, user, authenticated, timestamp }
 
 // BlenderBin price IDs
 const BLENDERBIN_PRICE_IDS = [
@@ -230,13 +230,13 @@ export async function POST(req: NextRequest) {
       ...subscriptionInfo
     };
     
-    // Store the token with the session ID
-    sessionTokens[session_id] = {
+    // Store the token to Firestore for the polling GET to pick up
+    await db.collection('auth_sessions').doc(session_id).set({
       token,
-      user: enhancedUser, // Store enhanced user with subscription info
-      timestamp: Date.now(),
-      authenticated: true
-    };
+      user: enhancedUser,
+      authenticated: true,
+      timestamp: new Date()
+    });
     
     console.log(`Stored authentication token for session ${session_id} with subscription info:`, subscriptionInfo);
     
@@ -257,20 +257,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing session ID' }, { status: 400 });
     }
     
-    // Return session data if it exists
-    if (sessionTokens[session_id]) {
-      const sessionData = sessionTokens[session_id];
-      
-      // Clean up the session after returning it (one-time use)
-      setTimeout(() => {
-        delete sessionTokens[session_id];
-        console.log(`Cleaned up session ${session_id}`);
-      }, 5000);
-      
+    // Look up session doc in Firestore (serverless-safe)
+    const docRef = await db.collection('auth_sessions').doc(session_id).get();
+    if (docRef.exists) {
+      const sessionData = docRef.data() as any;
+      // One-time use: delete after read
+      try { await db.collection('auth_sessions').doc(session_id).delete(); } catch {}
       return NextResponse.json({
         authenticated: true,
         token: sessionData.token,
-        user: sessionData.user // Now includes subscription info for both products
+        user: sessionData.user
       });
     }
     
