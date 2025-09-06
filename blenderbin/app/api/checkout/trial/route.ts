@@ -192,27 +192,27 @@ export async function POST(request: Request) {
     // Reuse an open Checkout Session if one exists recently to avoid duplicates
     try {
       const sessionsRef = db.collection('customers').doc(userId).collection('checkout_sessions');
-      // Avoid composite index requirement by filtering status in-memory
-      const recent = await sessionsRef
+      // Simpler query to avoid composite index; filter/sort in memory
+      const snap = await sessionsRef
         .where('productType', '==', 'blenderbin')
-        .orderBy('created', 'desc')
-        .limit(5)
+        .limit(10)
         .get();
-      for (const docSnap of recent.docs) {
-        const data = docSnap.data();
-        if (data.status && data.status !== 'created') continue;
-        const sessionId = docSnap.id;
+      const recent = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((d: any) => !d.status || d.status === 'created')
+        .sort((a: any, b: any) => (b.created?.toMillis?.() || 0) - (a.created?.toMillis?.() || 0))
+        .slice(0, 5);
+      for (const doc of recent) {
+        const sessionId = doc.id;
         try {
           const existing = await stripe.checkout.sessions.retrieve(sessionId);
-          if (existing && (existing.status === 'open' || existing.status === 'complete' && (existing as any).url)) {
+          if (existing && (existing.status === 'open' || (existing.status === 'complete' && (existing as any).url))) {
             console.log(`Reusing existing checkout session ${sessionId} for user ${userId}`);
             return NextResponse.json({ sessionId: existing.id, productType: 'blenderbin', trialEnabled: trialEligible, url: (existing as any).url });
           }
         } catch {}
       }
-    } catch (reuseErr) {
-      console.warn('Error while checking for reusable checkout sessions (non-fatal):', reuseErr);
-    }
+    } catch {}
 
     // Set appropriate success and cancel URLs
     const baseUrl = isDevelopment
@@ -255,6 +255,9 @@ export async function POST(request: Request) {
       allow_promotion_codes: true,
       billing_address_collection: 'required' as 'required',
       tax_id_collection: { enabled: true },
+      customer_update: {
+        address: 'auto' as 'auto'
+      },
       client_reference_id: userId, // Critical for webhooks
       metadata: {
         firebaseUID: userId,
