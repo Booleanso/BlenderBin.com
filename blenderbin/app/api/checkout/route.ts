@@ -261,6 +261,22 @@ export async function POST(request: Request) {
       
     const cancelUrl = `${baseUrl}/pricing`;
       
+    // Determine if user is eligible for trial (one trial per customer)
+    let trialEligible = false;
+    if (productType === 'blenderbin') {
+      try {
+        const pastSubs = await stripe.subscriptions.list({
+          customer: stripeCustomerId,
+          status: 'all',
+          limit: 100
+        });
+        trialEligible = !pastSubs.data.some((sub: any) => !!sub.trial_start || !!sub.trial_end);
+      } catch (e) {
+        console.warn('Trial eligibility check failed (defaulting to eligible):', e);
+        trialEligible = true;
+      }
+    }
+
     // Create checkout session with proper trial setup
     const sessionParams = {
       customer: stripeCustomerId,
@@ -272,7 +288,7 @@ export async function POST(request: Request) {
       }],
       subscription_data: {
         // Only apply trial to BlenderBin subscriptions
-        ...(productType === 'blenderbin' && {
+        ...(productType === 'blenderbin' && trialEligible && {
           trial_period_days: 7, // 7-day free trial for BlenderBin only
           trial_settings: {
             end_behavior: {
@@ -284,7 +300,7 @@ export async function POST(request: Request) {
           firebaseUID: userId,
           productType: productType,
           environment: isDevelopment ? 'development' : 'production',
-          trialEnabled: productType === 'blenderbin' ? 'true' : 'false'
+          trialEnabled: productType === 'blenderbin' ? (trialEligible ? 'true' : 'false') : 'false'
         }
       },
       payment_method_collection: productType === 'blenderbin' ? 'always' : 'if_required', // Always collect payment method for BlenderBin trials
@@ -304,7 +320,7 @@ export async function POST(request: Request) {
         environment: isDevelopment ? 'development' : 'production',
         originalPriceId: priceId,
         mappedPriceId: actualPriceId,
-        trialEnabled: productType === 'blenderbin' ? 'true' : 'false'
+        trialEnabled: productType === 'blenderbin' ? (trialEligible ? 'true' : 'false') : 'false'
       }
     } as const;
 

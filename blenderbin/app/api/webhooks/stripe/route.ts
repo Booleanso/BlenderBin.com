@@ -126,19 +126,28 @@ async function handleCheckoutCompleted(session: any) {
     console.log('Processing checkout.session.completed', session.id);
     
     // Update the session status in Firestore
-    await db.collection('stripe_checkout_sessions').doc(session.id).update({
+    await db.collection('stripe_checkout_sessions').doc(session.id).set({
       status: 'completed',
       updated: new Date()
-    });
+    }, { merge: true });
     
     // Get customer details
     const customerId = session.customer as string;
     const userId = session.client_reference_id as string || session.metadata?.firebaseUID;
     
     if (userId && customerId) {
-      // Update user's customer record
+      // Try to get customer email from Stripe to persist on customer doc
+      let stripeEmail: string | null = null;
+      try {
+        const stripeCustomer = await stripe.customers.retrieve(customerId);
+        // @ts-ignore - Stripe types
+        stripeEmail = (stripeCustomer && 'email' in stripeCustomer) ? (stripeCustomer as any).email : null;
+      } catch {}
+
+      // Update user's customer record (ensure email is present for token-based lookups)
       await db.collection('customers').doc(userId).set({
         stripeId: customerId,
+        email: stripeEmail || session.customer_details?.email || null,
         updatedAt: new Date()
       }, { merge: true });
       

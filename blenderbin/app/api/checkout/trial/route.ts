@@ -168,6 +168,27 @@ export async function POST(request: Request) {
       );
     }
 
+    // Enforce "one trial per customer" policy
+    try {
+      // Look for any past subscriptions for this customer that had a trial
+      const pastSubs = await stripe.subscriptions.list({
+        customer: stripeCustomerId,
+        status: 'all',
+        limit: 100
+      });
+      const hadTrialBefore = pastSubs.data.some((sub: any) => !!sub.trial_start || !!sub.trial_end);
+      if (hadTrialBefore) {
+        console.log(`User ${userId} has used a trial before; creating subscription without trial.`);
+      }
+
+      // If trial used before, we will omit trial fields when creating the session (below)
+      // by toggling a flag that influences sessionParams
+      var trialEligible = !hadTrialBefore;
+    } catch (eligErr) {
+      console.warn('Error checking prior trials (non-fatal):', eligErr);
+      var trialEligible = true;
+    }
+
     // Reuse an open Checkout Session if one exists recently to avoid duplicates
     try {
       const sessionsRef = db.collection('customers').doc(userId).collection('checkout_sessions');
@@ -209,17 +230,19 @@ export async function POST(request: Request) {
         quantity: 1
       }],
       subscription_data: {
-        trial_period_days: 7, // 7-day free trial for BlenderBin
-        trial_settings: {
-          end_behavior: {
-            missing_payment_method: 'cancel' // Cancel if no payment method after trial
+        ...(trialEligible && {
+          trial_period_days: 7,
+          trial_settings: {
+            end_behavior: {
+              missing_payment_method: 'cancel'
+            }
           }
-        },
+        }),
         metadata: {
           firebaseUID: userId,
           productType: 'blenderbin',
           environment: isDevelopment ? 'development' : 'production',
-          trialEnabled: 'true',
+          trialEnabled: trialEligible ? 'true' : 'false',
           trialType: 'blenderbin_trial',
           originalPriceId: priceId
         }
@@ -242,7 +265,7 @@ export async function POST(request: Request) {
         environment: isDevelopment ? 'development' : 'production',
         originalPriceId: priceId,
         mappedPriceId: actualPriceId,
-        trialEnabled: 'true',
+        trialEnabled: trialEligible ? 'true' : 'false',
         trialType: 'blenderbin_trial',
         createdAt: new Date().toISOString()
       }

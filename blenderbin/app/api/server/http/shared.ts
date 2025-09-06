@@ -410,16 +410,25 @@ export async function verifyFirebaseToken(token: string) {
       decodedToken.has_blenderbin_subscription = false
       
       try {
-        console.log(`Looking for customer with email: ${email}`)
-        const userQuery = await db.collection('customers')
-          .where('email', '==', email)
-          .limit(1)
-          .get()
+        // Prefer direct lookup by UID, fall back to email query for robustness
+        console.log(`Attempting customer lookup by UID: ${decodedToken.uid}`)
+        let userDoc = await db.collection('customers').doc(decodedToken.uid).get()
         
-        console.log(`Customer query result: ${userQuery.empty ? 'NO RESULTS' : 'FOUND CUSTOMER'}`)
+        if (!userDoc.exists) {
+          console.log(`No customer doc by UID. Looking for customer with email: ${email}`)
+          const userQuery = await db.collection('customers')
+            .where('email', '==', email)
+            .limit(1)
+            .get()
+          console.log(`Customer email query result: ${userQuery.empty ? 'NO RESULTS' : 'FOUND CUSTOMER'}`)
+          if (!userQuery.empty) {
+            userDoc = userQuery.docs[0]
+          }
+        } else {
+          console.log(`Found customer doc by UID: ${decodedToken.uid}`)
+        }
         
-        if (!userQuery.empty) {
-          const userDoc = userQuery.docs[0]
+        if (userDoc && (userDoc.exists || userDoc.id)) {
           const userData = userDoc.data() || {}
           console.log(`Customer ID: ${userDoc.id}`)
           console.log(`Customer data keys:`, Object.keys(userData))
