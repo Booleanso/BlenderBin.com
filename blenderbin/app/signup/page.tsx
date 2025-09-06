@@ -13,6 +13,8 @@ import {
   onAuthStateChanged,
   User,
   browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
   setPersistence
 } from 'firebase/auth';
 import { auth } from '../lib/firebase-client';
@@ -27,10 +29,18 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Set persistence to LOCAL (browser)
+// Set persistence with fallbacks for Safari/ITP
 setPersistence(auth, browserLocalPersistence)
+  .catch((err1) => {
+    console.warn("Local persistence unavailable, falling back to session:", err1?.message || err1);
+    return setPersistence(auth, browserSessionPersistence);
+  })
+  .catch((err2) => {
+    console.warn("Session persistence unavailable, falling back to memory:", err2?.message || err2);
+    return setPersistence(auth, inMemoryPersistence);
+  })
   .catch((error) => {
-    console.error("Firebase persistence error:", error);
+    console.error("All persistence modes failed:", error);
   });
 
 // Separate component to handle search params
@@ -76,6 +86,9 @@ function SignupPageContent() {
     }, 200);
   };
 
+  // Detect Safari (use popup auth for reliability)
+  const isSafari = typeof navigator !== 'undefined' && /safari/i.test(navigator.userAgent) && !/chrome|android/i.test(navigator.userAgent);
+
   // Check auth state on load and handle redirect results
   useEffect(() => {
     console.log("Auth useEffect running, checking for redirect and auth state");
@@ -101,7 +114,7 @@ function SignupPageContent() {
             await sendTokenToAddon(result.user);
           } else {
             // If no session ID, this is a web authentication - redirect to dashboard
-            router.push('/pricing');
+            router.replace('/pricing');
           }
         }
         
@@ -136,7 +149,7 @@ function SignupPageContent() {
         // If no session ID and not already in the animation state, this is a web login
         else if (!sessionId && !animating) {
           console.log("Web authentication detected, redirecting to dashboard");
-          router.push('/pricing');
+          router.replace('/pricing');
         }
       }
       
@@ -247,7 +260,7 @@ function SignupPageContent() {
         }
         // If no session ID, redirect to dashboard (not from Blender)
         else if (!sessionId) {
-          router.push('/pricing');
+          router.replace('/pricing');
         }
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -258,7 +271,7 @@ function SignupPageContent() {
         }
         // If no session ID, redirect to dashboard (not from Blender)
         else if (!sessionId) {
-          router.push('/pricing');
+          router.replace('/pricing');
         }
       }
       // Auth state change will trigger sendTokenToAddon if sessionId exists
@@ -278,7 +291,7 @@ function SignupPageContent() {
       
       console.log("Starting Google sign-in with redirect...");
       // Use popup for better experience on development
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || isSafari) {
         console.log("Using popup for local development");
         const result = await signInWithPopup(auth, googleProvider);
         console.log("Google sign-in successful with popup:", result.user.email);

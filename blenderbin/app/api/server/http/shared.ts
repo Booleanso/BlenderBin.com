@@ -3,6 +3,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { getAuth } from 'firebase-admin/auth'
 import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { stripe } from '../../../lib/stripe'
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'crypto'
 import { gzip } from 'zlib'
 import { promisify } from 'util'
@@ -456,7 +457,9 @@ export async function verifyFirebaseToken(token: string) {
             
             // Gizmo price IDs removed
             
-            // Check for active subscriptions (including trials)
+            // Check for active subscriptions (including trials). If none found, align with checkout-based trial creation:
+            // 1) Look for a recent checkout session for BlenderBin where trialEnabled=true
+            // 2) If present and Stripe shows a related subscription now exists, ensure Firestore has the sub doc
             const customerRef = db.collection('customers').doc(userDoc.id)
             const subscriptionsRef = customerRef.collection('subscriptions')
             
@@ -481,7 +484,11 @@ export async function verifyFirebaseToken(token: string) {
               
               // Users get subscription access during both trial and active periods
               if (['trialing', 'active'].includes(subData.status)) {
-              
+                // Accept explicit productType flag (written by webhook/backfill)
+                if (subData.productType === 'blenderbin') {
+                  activeBlenderBinSubscription = true
+                  console.log(`✅ Found BlenderBin subscription by productType flag: ${sub.id}, status: ${subData.status}`)
+                }
                 // Check specific price IDs for BlenderBin
               if (subData.items) {
                   console.log(`Checking ${subData.items.length} subscription items:`)
@@ -518,11 +525,73 @@ export async function verifyFirebaseToken(token: string) {
               }
             }
             
+            // If no active/trialing sub found, attempt recovery flow tied to checkout
+            if (!activeBlenderBinSubscription) {
+              try {
+                // Find latest checkout session where productType=blenderbin
+                console.log('No active subs found; checking recent checkout sessions...')
+                const sessionsSnap = await customerRef.collection('checkout_sessions')
+                  .where('productType', '==', 'blenderbin')
+                  .orderBy('created', 'desc')
+                  .limit(5)
+                  .get()
+                
+                if (!sessionsSnap.empty) {
+                  for (const docSnap of sessionsSnap.docs) {
+                    const sess = docSnap.data()
+                    // Only consider recent sessions
+                    const createdAt: Date = sess.created?.toDate?.() || sess.created || new Date(0)
+                    const ageMinutes = (Date.now() - new Date(createdAt).getTime()) / 60000
+                    if (ageMinutes > 120) { // ignore sessions older than 2 hours
+                      continue
+                    }
+                    // Probe Stripe for a subscription now present for this customer
+                    const stripeCustomerId = userData.stripeId
+                    if (stripeCustomerId) {
+                      const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 20 })
+                      const relevantPriceIds = [
+                        process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+                        process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID,
+                        process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID,
+                        process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID
+                      ].filter(Boolean)
+                      const found = subs.data.find(sub => {
+                        const byPrice = sub.items?.data?.some(it => it?.price?.id && relevantPriceIds.includes(it.price.id))
+                        const byMetadata = (sub.metadata && (sub.metadata.productType === 'blenderbin' || (sub.metadata as any).product_type === 'blenderbin'))
+                        return (byPrice || byMetadata) && (sub.status === 'trialing' || sub.status === 'active')
+                      })
+                      if (found) {
+                        // Ensure Firestore has a subscription doc to unblock entitlement
+                        const subRef = customerRef.collection('subscriptions').doc(found.id)
+                        const existing = await subRef.get()
+                        if (!existing.exists) {
+                          await subRef.set({
+                            id: found.id,
+                            status: found.status,
+                            current_period_start: new Date(found.current_period_start * 1000),
+                            current_period_end: new Date(found.current_period_end * 1000),
+                            trial_start: found.trial_start ? new Date(found.trial_start * 1000) : null,
+                            trial_end: found.trial_end ? new Date(found.trial_end * 1000) : null,
+                            cancel_at_period_end: found.cancel_at_period_end,
+                            items: found.items.data.map(it => ({ id: it.id, price: { id: it.price.id, unit_amount: it.price.unit_amount, currency: it.price.currency, recurring: it.price.recurring }, quantity: it.quantity })),
+                            created: new Date(found.created * 1000),
+                            productType: 'blenderbin',
+                            source: 'token-repair'
+                          })
+                          console.log(`Repaired missing subscription doc from Stripe: ${found.id}`)
+                        }
+                        activeBlenderBinSubscription = true
+                        break
+                      }
+                    }
+                  }
+                }
+              } catch (repairErr) {
+                console.log('Recovery from checkout session failed:', repairErr)
+              }
+            }
+
             decodedToken.has_blenderbin_subscription = activeBlenderBinSubscription
-            decodedToken.has_subscription = activeBlenderBinSubscription
-            
-            // For AI access: grant access if user has EITHER BlenderBin OR Gizmo subscription
-            // BlenderBin includes AI features, and Gizmo is specifically for AI
             decodedToken.has_subscription = activeBlenderBinSubscription
             
             console.log(`FINAL RESULTS:`)

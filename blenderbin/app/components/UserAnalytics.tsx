@@ -283,7 +283,7 @@ const UserAnalytics: React.FC = () => {
       <div className="p-8 bg-gray-950 border border-gray-800 rounded-lg text-center">
         <h3 className="text-lg font-medium text-gray-300">No Analytics Data</h3>
         <p className="text-gray-400 mt-2">
-          No API usage data found. Start using Gizmo AI in Blender to generate usage statistics.
+          No API usage data found yet. Start using BlenderBin to generate usage statistics.
         </p>
       </div>
     );

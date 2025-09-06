@@ -199,19 +199,11 @@ export async function POST(request: Request) {
     
     // In development, use test price IDs
     if (isDevelopment) {
-      // Map production price IDs to test price IDs for both products
+      // Map production price IDs to test price IDs for BlenderBin
       const priceIdMap: Record<string, string> = {
-        // BlenderBin price ID mapping
         [process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID || '',
-        [process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID || '',
-        // Gizmo AI price ID mapping (properly named)
-        [process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID || '',
-        [process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID || '',
-        [process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID || '',
-        [process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID || ''
+        [process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID || '']: process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID || ''
       };
-      
-      // Use mapped test price ID if available
       actualPriceId = priceIdMap[priceId] || priceId;
       console.log(`Mapped ${productType} price ID ${priceId} to test price ID ${actualPriceId}`);
     }

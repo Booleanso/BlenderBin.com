@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         subscriptionStatus: {
           hasSubscription: decodedToken.has_subscription || false,
           hasBlenderBinSubscription: decodedToken.has_blenderbin_subscription || false,
-          hasGizmoSubscription: false,
+          
           isDeveloper: decodedToken.is_developer || false
         },
         message: 'Token verification completed - check server logs for detailed subscription lookup'
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         subscriptionStatus: {
           hasSubscription: decodedToken.has_subscription || false,
           hasBlenderBinSubscription: decodedToken.has_blenderbin_subscription || false,
-          hasGizmoSubscription: false,
+          
           isDeveloper: decodedToken.is_developer || false
         },
         message: 'Token verification completed - check server logs for detailed subscription lookup'

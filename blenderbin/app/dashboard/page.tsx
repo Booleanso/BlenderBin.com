@@ -329,8 +329,7 @@ export default function Dashboard() {
                 <div className="space-y-6">
                   <h3 className="text-xl font-semibold text-white mb-4">Usage Analytics</h3>
                   <p className="text-gray-400 mb-6">
-                    Track your usage of Gizmo AI features in Blender. The data below shows your API usage patterns
-                    and helps you understand how you're using the service.
+                    Track your BlenderBin usage analytics below to understand how you're using the service.
                   </p>
                   
                   {/* Import and use the UserAnalytics component */}

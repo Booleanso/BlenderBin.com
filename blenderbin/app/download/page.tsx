@@ -139,7 +139,18 @@ function DownloadContent() {
       }
 
       if (data.downloadUrl) {
-        window.location.href = data.downloadUrl;
+        // For Safari, route through our file proxy to enforce ZIP headers
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) {
+          const base = typeof window !== 'undefined' ? window.location.origin : ''
+          const proxied = `${base}/api/download/file?userId=${encodeURIComponent(userId || '')}${sessionId ? `&session_id=${encodeURIComponent(sessionId)}` : ''}`
+          // Use the same Authorization header for the proxied request by opening directly
+          // Since we cannot set headers via window.location, encourage manual click fallback
+          // Prefer opening in the same tab
+          window.location.href = proxied
+        } else {
+          window.location.href = data.downloadUrl;
+        }
         setIsDownloading(true);
         showToast('Download started successfully!', 'success');
         
