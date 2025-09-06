@@ -525,69 +525,53 @@ export async function verifyFirebaseToken(token: string) {
               }
             }
             
-            // If no active/trialing sub found, attempt recovery flow tied to checkout
+            // If no active/trialing sub found, attempt direct Stripe lookup (does not rely on Firestore docs)
             if (!activeBlenderBinSubscription) {
               try {
-                // Find latest checkout session where productType=blenderbin
-                console.log('No active subs found; checking recent checkout sessions...')
-                const sessionsSnap = await customerRef.collection('checkout_sessions')
-                  .where('productType', '==', 'blenderbin')
-                  .orderBy('created', 'desc')
-                  .limit(5)
-                  .get()
-                
-                if (!sessionsSnap.empty) {
-                  for (const docSnap of sessionsSnap.docs) {
-                    const sess = docSnap.data()
-                    // Only consider recent sessions
-                    const createdAt: Date = sess.created?.toDate?.() || sess.created || new Date(0)
-                    const ageMinutes = (Date.now() - new Date(createdAt).getTime()) / 60000
-                    if (ageMinutes > 120) { // ignore sessions older than 2 hours
-                      continue
-                    }
-                    // Probe Stripe for a subscription now present for this customer
-                    const stripeCustomerId = userData.stripeId
-                    if (stripeCustomerId) {
-                      const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 20 })
-                      const relevantPriceIds = [
-                        process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
-                        process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID,
-                        process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID,
-                        process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID
-                      ].filter(Boolean)
-                      const found = subs.data.find(sub => {
-                        const byPrice = sub.items?.data?.some(it => it?.price?.id && relevantPriceIds.includes(it.price.id))
-                        const byMetadata = (sub.metadata && (sub.metadata.productType === 'blenderbin' || (sub.metadata as any).product_type === 'blenderbin'))
-                        return (byPrice || byMetadata) && (sub.status === 'trialing' || sub.status === 'active')
-                      })
-                      if (found) {
-                        // Ensure Firestore has a subscription doc to unblock entitlement
-                        const subRef = customerRef.collection('subscriptions').doc(found.id)
-                        const existing = await subRef.get()
-                        if (!existing.exists) {
-                          await subRef.set({
-                            id: found.id,
-                            status: found.status,
-                            current_period_start: new Date(found.current_period_start * 1000),
-                            current_period_end: new Date(found.current_period_end * 1000),
-                            trial_start: found.trial_start ? new Date(found.trial_start * 1000) : null,
-                            trial_end: found.trial_end ? new Date(found.trial_end * 1000) : null,
-                            cancel_at_period_end: found.cancel_at_period_end,
-                            items: found.items.data.map(it => ({ id: it.id, price: { id: it.price.id, unit_amount: it.price.unit_amount, currency: it.price.currency, recurring: it.price.recurring }, quantity: it.quantity })),
-                            created: new Date(found.created * 1000),
-                            productType: 'blenderbin',
-                            source: 'token-repair'
-                          })
-                          console.log(`Repaired missing subscription doc from Stripe: ${found.id}`)
-                        }
-                        activeBlenderBinSubscription = true
-                        break
+                const stripeCustomerId = userData.stripeId
+                if (stripeCustomerId) {
+                  console.log('No Firestore sub found; checking Stripe directly...')
+                  const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 20 })
+                  const relevantPriceIds = [
+                    process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+                    process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID,
+                    process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID,
+                    process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID
+                  ].filter(Boolean)
+                  const found = subs.data.find(sub => {
+                    const byPrice = sub.items?.data?.some(it => it?.price?.id && relevantPriceIds.includes(it.price.id))
+                    const byMetadata = (sub.metadata && (sub.metadata.productType === 'blenderbin' || (sub.metadata as any).product_type === 'blenderbin'))
+                    return (byPrice || byMetadata) && (sub.status === 'trialing' || sub.status === 'active')
+                  })
+                  if (found) {
+                    // Best-effort backfill subscription doc for future fast checks
+                    try {
+                      const subRef = customerRef.collection('subscriptions').doc(found.id)
+                      const existing = await subRef.get()
+                      if (!existing.exists) {
+                        await subRef.set({
+                          id: found.id,
+                          status: found.status,
+                          current_period_start: new Date(found.current_period_start * 1000),
+                          current_period_end: new Date(found.current_period_end * 1000),
+                          trial_start: found.trial_start ? new Date(found.trial_start * 1000) : null,
+                          trial_end: found.trial_end ? new Date(found.trial_end * 1000) : null,
+                          cancel_at_period_end: found.cancel_at_period_end,
+                          items: found.items.data.map(it => ({ id: it.id, price: { id: it.price.id, unit_amount: it.price.unit_amount, currency: it.price.currency, recurring: it.price.recurring }, quantity: it.quantity })),
+                          created: new Date(found.created * 1000),
+                          productType: 'blenderbin',
+                          source: 'token-repair'
+                        })
+                        console.log(`Repaired missing subscription doc from Stripe: ${found.id}`)
                       }
+                    } catch (e) {
+                      console.log('Backfill write failed (non-fatal):', e)
                     }
+                    activeBlenderBinSubscription = true
                   }
                 }
               } catch (repairErr) {
-                console.log('Recovery from checkout session failed:', repairErr)
+                console.log('Direct Stripe lookup failed:', repairErr)
               }
             }
 
