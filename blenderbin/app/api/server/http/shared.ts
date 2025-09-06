@@ -528,7 +528,22 @@ export async function verifyFirebaseToken(token: string) {
             // If no active/trialing sub found, attempt direct Stripe lookup (does not rely on Firestore docs)
             if (!activeBlenderBinSubscription) {
               try {
-                const stripeCustomerId = userData.stripeId
+                let stripeCustomerId = userData.stripeId
+                // Fallback: if stripeId missing, try locating by email in Stripe and persist it
+                if (!stripeCustomerId && email) {
+                  console.log('stripeId missing; searching Stripe by email...')
+                  try {
+                    const search = await stripe.customers.list({ email, limit: 1 })
+                    const candidate = (search.data && search.data[0]) as any
+                    if (candidate && candidate.id) {
+                      stripeCustomerId = candidate.id
+                      await customerRef.set({ stripeId: stripeCustomerId, email }, { merge: true })
+                      console.log(`Recovered stripeId from Stripe: ${stripeCustomerId}`)
+                    }
+                  } catch (e) {
+                    console.log('Stripe email search failed:', e)
+                  }
+                }
                 if (stripeCustomerId) {
                   console.log('No Firestore sub found; checking Stripe directly...')
                   const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 20 })
