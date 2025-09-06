@@ -283,7 +283,7 @@ export async function POST(request: Request) {
       productType: 'blenderbin',
       status: 'created',
       environment: isDevelopment ? 'development' : 'production',
-      trialEnabled: true,
+      trialEnabled: trialEligible,
       trialType: 'blenderbin_trial'
     });
 
@@ -292,7 +292,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       sessionId: session.id, 
       productType: 'blenderbin',
-      trialEnabled: true,
+      trialEnabled,
       url: session.url
     });
   } catch (error: unknown) {

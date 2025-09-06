@@ -89,6 +89,22 @@ function SignupPageContent() {
   // Detect Safari (use popup auth for reliability)
   const isSafari = typeof navigator !== 'undefined' && /safari/i.test(navigator.userAgent) && !/chrome|android/i.test(navigator.userAgent);
 
+  // Utility: wait for Firebase to commit the user (handles Safari persistence delays)
+  const waitForAuthUser = async (timeoutMs = 10000, intervalMs = 200): Promise<User | null> => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const u = auth.currentUser;
+      if (u) {
+        try {
+          await u.getIdToken(true);
+        } catch {}
+        return u;
+      }
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return null;
+  };
+
   // Check auth state on load and handle redirect results
   useEffect(() => {
     console.log("Auth useEffect running, checking for redirect and auth state");
@@ -254,6 +270,14 @@ function SignupPageContent() {
       if (authMode === 'login') {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log("Signed in with email:", userCredential.user.email);
+        // Ensure persistence committed before navigating
+        const ensured = await waitForAuthUser();
+        if (!ensured) {
+          setMessage('Sign-in did not persist (Safari). Please try again or disable Private Browsing.');
+          setLoading(false);
+          setHasLoadedOnce(true);
+          return;
+        }
         // If redirect_uri provided, prefer redirect with id token
         if (redirectUri && auth.currentUser) {
           await redirectWithIdToken(auth.currentUser);
@@ -265,6 +289,14 @@ function SignupPageContent() {
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         console.log("Created account with email:", userCredential.user.email);
+        // Ensure persistence committed before navigating
+        const ensured = await waitForAuthUser();
+        if (!ensured) {
+          setMessage('Account created but session not persisted (Safari). Please try again.');
+          setLoading(false);
+          setHasLoadedOnce(true);
+          return;
+        }
         // If redirect_uri provided, prefer redirect with id token
         if (redirectUri && auth.currentUser) {
           await redirectWithIdToken(auth.currentUser);
@@ -295,6 +327,14 @@ function SignupPageContent() {
         console.log("Using popup for local development");
         const result = await signInWithPopup(auth, googleProvider);
         console.log("Google sign-in successful with popup:", result.user.email);
+        // Ensure persistence committed before navigating
+        const ensured = await waitForAuthUser();
+        if (!ensured) {
+          setMessage('Google sign-in did not persist (Safari). Try again or disable Private Browsing.');
+          setLoading(false);
+          setHasLoadedOnce(true);
+          return;
+        }
         
         // Prefer redirect flow if redirect_uri exists
         if (redirectUri && result.user) {
