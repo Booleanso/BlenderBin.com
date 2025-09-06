@@ -119,16 +119,15 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .get()
     
+    let userDoc
     if (userQuery.empty) {
-      console.log(`No user document found for email: ${email}`)
-      return NextResponse.json({
-        status: 'error',
-        message: 'User not found',
-        has_subscription: false
-      }, { status: 404 })
+      console.log(`No user document found for email: ${email}. Creating minimal profile...`)
+      const custRef = db.collection('customers').doc(decodedToken.uid)
+      await custRef.set({ email, createdAt: new Date() }, { merge: true })
+      userDoc = await custRef.get()
+    } else {
+      userDoc = userQuery.docs[0]
     }
-    
-    const userDoc = userQuery.docs[0]
     const userData = userDoc.data() || {}
     console.log(`Found user document: ${userDoc.id}`)
     

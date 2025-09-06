@@ -556,7 +556,8 @@ export async function verifyFirebaseToken(token: string) {
                   const found = subs.data.find(sub => {
                     const byPrice = sub.items?.data?.some(it => it?.price?.id && relevantPriceIds.includes(it.price.id))
                     const byMetadata = (sub.metadata && (sub.metadata.productType === 'blenderbin' || (sub.metadata as any).product_type === 'blenderbin'))
-                    return (byPrice || byMetadata) && (sub.status === 'trialing' || sub.status === 'active')
+                    const entitledStatus = (sub.status === 'trialing' || sub.status === 'active' || (sub.status === 'incomplete' && typeof sub.trial_end === 'number' && sub.trial_end * 1000 > Date.now()))
+                    return (byPrice || byMetadata) && entitledStatus
                   })
                   if (found) {
                     // Best-effort backfill subscription doc for future fast checks
