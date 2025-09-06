@@ -27,20 +27,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
     status: ''
   });
   
-  // Add state for Gizmo subscription
-  const [gizmoSubscription, setGizmoSubscription] = useState<any>(null);
-  const [gizmoSubscriptionStatus, setGizmoSubscriptionStatus] = useState<any>({
-    isSubscribed: false,
-    cancelAtPeriodEnd: false,
-    currentPeriodEnd: '',
-    status: ''
-  });
+  // Gizmo subscription removed
   
   const [isBillingLoading, setIsBillingLoading] = useState(false);
   
   // Add separate billing loading states
   const [isBlenderBinBillingLoading, setIsBlenderBinBillingLoading] = useState(false);
-  const [isGizmoBillingLoading, setIsGizmoBillingLoading] = useState(false);
+  // Removed Gizmo billing state
   
   // Add states for profile management
   const [profilePicUrl, setProfilePicUrl] = useState<string>('');
@@ -250,47 +243,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
     }
   };
 
-  const handleGizmoUnsubscribe = async () => {
-    try {
-      if (!user?.uid) return;
-      
-      setSaveMessage('Cancelling Gizmo subscription...');
-      setSaveError(false);
-      
-      const response = await fetch('/api/gizmo/subscription/cancel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to cancel Gizmo subscription');
-      }
-
-      setSaveMessage('Gizmo subscription canceled successfully');
-      setSaveError(false);
-      
-      // Refresh subscription data
-      setTimeout(() => {
-        fetchSubscriptionData();
-      }, 1500);
-    } catch (error) {
-      console.error('Error cancelling Gizmo subscription:', error);
-      
-      setSaveMessage(error instanceof Error ? error.message : 'Failed to cancel Gizmo subscription');
-      setSaveError(true);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setSaveMessage('');
-      }, 3000);
-    }
-  };
+  // Removed Gizmo unsubscribe handler
 
   const handleRedownload = async () => {
     try {
@@ -347,10 +300,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
           setSubscription(userData.stripeRole);
         }
         
-        // Set Gizmo subscription data (if available in userData)
-        if (userData && userData.gizmoSubscription) {
-          setGizmoSubscription(userData.gizmoSubscription);
-        }
+        // Gizmo subscription data removed
         
         // Fetch BlenderBin subscription status details with retry logic
         let statusData = null;
@@ -396,24 +346,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
           });
         }
         
-        // Fetch Gizmo subscription status details if needed
-        try {
-          const gizmoResponse = await fetch(`/api/gizmo/subscription/status?userId=${user.uid}&_t=${Date.now()}`);
-          if (gizmoResponse.ok) {
-            const gizmoStatusData = await gizmoResponse.json();
-            setGizmoSubscriptionStatus(gizmoStatusData);
-            console.log('Gizmo subscription status:', gizmoStatusData);
-          }
-        } catch (error) {
-          console.error('Error fetching Gizmo subscription status:', error);
-          // Default to free tier if we can't fetch the status
-          setGizmoSubscriptionStatus({
-            isSubscribed: false,
-            cancelAtPeriodEnd: false,
-            currentPeriodEnd: '',
-            status: 'none'
-          });
-        }
+        // Gizmo status fetch removed
       } catch (error) {
         console.error('Error fetching subscription:', error);
       }
@@ -468,46 +401,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
     }
   };
 
-  const handleGizmoBillingPortal = async () => {
-    try {
-      setIsGizmoBillingLoading(true);
-      
-      // Get auth token
-      const token = await user.getIdToken();
-      
-      // Call our Gizmo-specific billing portal API
-      const response = await axios.post('/api/create-billing-portal/gizmo', 
-        {
-          returnUrl: window.location.href
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-      
-      if (response.data.success) {
-        // If we created a new customer
-        if (response.data.newCustomer) {
-          console.log('Created new Gizmo Stripe customer');
-        }
-        
-        // Open the Stripe Billing Portal in a new tab
-        window.open(response.data.url, '_blank');
-      } else if (response.data.redirectUrl) {
-        // If there's no Stripe customer yet, redirect to upgrade page
-        router.push(response.data.redirectUrl);
-      }
-    } catch (error) {
-      console.error('Error opening Gizmo billing portal:', error);
-      
-      // Show error message to user
-      alert('Failed to open Gizmo billing portal. Please try again later.');
-    } finally {
-      setIsGizmoBillingLoading(false);
-    }
-  };
+  // Gizmo billing portal handler removed
 
   // Manual refresh function for subscription data
   const handleRefreshSubscriptionData = async () => {
@@ -830,61 +724,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
                   )}
                 </div>
 
-                {/* Gizmo Row */}
-                <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/30 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center">
-                        <Bot className="h-4 w-4 text-purple-400" />
-                      </div>
-                      <div>
-                        <div className="text-white font-medium">Gizmo AI</div>
-                        <div className="text-xs text-zinc-400">AI Assistant</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-300">
-                          {gizmoSubscription || 'Free'}
-                        </span>
-                        {gizmoSubscriptionStatus?.isTrialing && (
-                          <span className="text-xs text-purple-400">
-                            {gizmoSubscriptionStatus?.trialDaysRemaining}d left
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {gizmoSubscriptionStatus?.isSubscribed ? (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={handleGizmoBillingPortal}
-                        disabled={isGizmoBillingLoading}
-                        className="flex-1 rounded-lg py-2 px-3 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50"
-                      >
-                        {isGizmoBillingLoading ? 'Loading...' : 'Manage'}
-                      </button>
-                      {gizmoSubscriptionStatus?.status === 'trialing' && (
-                        <button
-                          onClick={handleGizmoUnsubscribe}
-                          className="rounded-lg py-2 px-3 text-xs font-medium bg-red-600/20 hover:bg-red-600/30 text-red-400 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-3">
-                      <Link 
-                        href="/pricing/gizmo"
-                        className="block w-full text-center rounded-lg py-2 px-3 text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white transition-colors"
-                      >
-                        Upgrade
-                      </Link>
-                    </div>
-                  )}
-                </div>
+                {/* Gizmo Row removed */}
               </div>
             </div>
 

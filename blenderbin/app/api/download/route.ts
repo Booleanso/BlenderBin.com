@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       let userTier = "free";
       if (decodedToken.is_developer) {
         userTier = "developer";
-      } else if (decodedToken.has_blenderbin_subscription || decodedToken.has_gizmo_subscription) {
+      } else if (decodedToken.has_blenderbin_subscription) {
         userTier = "pro"; // Could be business, but pro is sufficient for downloads
       }
       

@@ -43,6 +43,7 @@ export default function AddonsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAddon, setSelectedAddon] = useState<AddonMetadata | null>(null);
   const [priceMap, setPriceMap] = useState<Record<string, { amount: number; currency: string }>>({});
+  const [startingCheckout, setStartingCheckout] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -203,6 +204,8 @@ export default function AddonsPage() {
       return;
     }
     try {
+      if (startingCheckout) return;
+      setStartingCheckout(true);
       const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || '';
       const res = await fetch('/api/checkout/trial', {
         method: 'POST',
@@ -218,6 +221,8 @@ export default function AddonsPage() {
     } catch (e) {
       console.error('Subscribe error:', e);
       router.push('/pricing/blenderbin');
+    } finally {
+      setStartingCheckout(false);
     }
   };
 
@@ -639,9 +644,10 @@ export default function AddonsPage() {
             <div className="flex gap-3">
               <button
                 onClick={(e) => { e.stopPropagation(); handleSubscribe(selectedAddon); }}
-                className="flex-1 rounded-full bg-white text-black hover:bg-zinc-100 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105"
+                className="flex-1 rounded-full bg-white text-black hover:bg-zinc-100 py-2 px-4 text-sm font-medium transition-all duration-200 hover:scale-105 disabled:opacity-60"
+                disabled={startingCheckout}
               >
-                Subscribe
+                {startingCheckout ? 'Starting…' : 'Subscribe'}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); handleBuyAddon(selectedAddon); }}

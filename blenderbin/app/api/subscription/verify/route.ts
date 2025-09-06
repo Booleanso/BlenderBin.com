@@ -22,18 +22,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         hasAccess: decodedToken.has_subscription || false,
         hasBlenderBinAccess: decodedToken.has_blenderbin_subscription || false,
-        hasGizmoAccess: decodedToken.has_gizmo_subscription || false,
+        hasGizmoAccess: false,
         userId: decodedToken.uid,
         email: decodedToken.email,
         isDeveloper: decodedToken.is_developer || false,
         subscriptionStatus: decodedToken.has_subscription ? 'active' : 'none',
         subscriptionBreakdown: {
           blenderBin: decodedToken.has_blenderbin_subscription || false,
-          gizmo: decodedToken.has_gizmo_subscription || false,
+          gizmo: false,
           combined: decodedToken.has_subscription || false
         },
         message: decodedToken.has_subscription 
-          ? `User has valid subscription access - BlenderBin: ${decodedToken.has_blenderbin_subscription}, Gizmo: ${decodedToken.has_gizmo_subscription}` 
+          ? `User has valid subscription access - BlenderBin: ${decodedToken.has_blenderbin_subscription}` 
           : 'User does not have any active subscriptions'
       });
       

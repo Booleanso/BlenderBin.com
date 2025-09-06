@@ -1677,7 +1677,7 @@ export async function POST(req: NextRequest) {
         // Determine subscription tier based on subscriptions
         if (decodedToken.is_developer) {
           subscriptionTier = "developer";
-        } else if (decodedToken.has_blenderbin_subscription || decodedToken.has_gizmo_subscription) {
+        } else if (decodedToken.has_blenderbin_subscription) {
           // Check if user has business tier subscription by looking at Stripe role and price IDs
           const userDoc = await db.collection('users').doc(userId).get();
           const userData = userDoc.data() || {};

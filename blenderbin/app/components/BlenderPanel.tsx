@@ -59,6 +59,7 @@ export default function NavBar() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
     isSubscribed: false
   });
+  const [startingCheckout, setStartingCheckout] = useState(false);
 
   useEffect(() => {
     const fetchS3Files = async () => {
@@ -125,6 +126,8 @@ export default function NavBar() {
   const handleCheckout = async () => {
     try {
       if (!user?.uid) return;
+      if (startingCheckout) return;
+      setStartingCheckout(true);
       // Use BlenderBin trial endpoint consistently
       const response = await fetch('/api/checkout/trial', {
         method: 'POST',
@@ -147,6 +150,8 @@ export default function NavBar() {
       }
     } catch (error) {
       console.error('Checkout error:', error);
+    } finally {
+      setStartingCheckout(false);
     }
   };
 
@@ -232,7 +237,7 @@ export default function NavBar() {
                   </>
                 ) : (
                   <div className="button-wrapper">
-                    <button onClick={() => setModalOpen(true)} className="navbar-button">GET STARTED</button>
+                    <button onClick={() => setModalOpen(true)} className="navbar-button" disabled={startingCheckout}>{startingCheckout ? 'PLEASE WAIT…' : 'GET STARTED'}</button>
                   </div>
                 )}
                 <div className="button-wrapper">

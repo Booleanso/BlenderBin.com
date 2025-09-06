@@ -15,32 +15,18 @@ const BLENDERBIN_PRICE_IDS = [
   process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID, // Test Yearly
 ].filter(Boolean); // Remove undefined values
 
-// Gizmo AI price IDs (properly named)
-const GIZMO_PRICE_IDS = [
-  // Gizmo Production Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID, // Gizmo Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID, // Gizmo Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Yearly
-  // Gizmo Test Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID, // Gizmo Test Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID, // Gizmo Test Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Yearly
-].filter(Boolean); // Remove undefined values
+// Gizmo removed
 
 // Helper function to determine subscription type
-function getSubscriptionType(priceId: string): 'blenderbin' | 'gizmo' | 'unknown' {
+function getSubscriptionType(priceId: string): 'blenderbin' | 'unknown' {
   if (BLENDERBIN_PRICE_IDS.includes(priceId)) {
     return 'blenderbin';
-  } else if (GIZMO_PRICE_IDS.includes(priceId)) {
-    return 'gizmo';
   }
   return 'unknown';
 }
 
 // Helper function to check if user has existing subscription for specific product
-async function checkExistingSubscription(userId: string, productType: 'blenderbin' | 'gizmo'): Promise<boolean> {
+async function checkExistingSubscription(userId: string, productType: 'blenderbin'): Promise<boolean> {
   const subscriptionsSnapshot = await db
     .collection('customers')
     .doc(userId)
@@ -53,7 +39,7 @@ async function checkExistingSubscription(userId: string, productType: 'blenderbi
   }
 
   // Filter subscriptions by product type
-  const relevantPriceIds = productType === 'blenderbin' ? BLENDERBIN_PRICE_IDS : GIZMO_PRICE_IDS;
+  const relevantPriceIds = BLENDERBIN_PRICE_IDS;
   
   for (const subDoc of subscriptionsSnapshot.docs) {
     const subData = subDoc.data();
@@ -118,29 +104,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Set product-specific return URLs
     const origin = request.headers.get('origin') || 'https://blenderbin.com';
-    const defaultSuccessUrl = productType === 'blenderbin' 
-      ? `${origin}/download?success=true`
-      : `${origin}/dashboard?success=true&product=gizmo`;
+    const defaultSuccessUrl = `${origin}/download?success=true`;
     const defaultCancelUrl = `${origin}/pricing?canceled=true`;
     
-    // Delegate to the maintained endpoints
-    if (productType === 'blenderbin') {
-      const res = await fetch(`${origin}/api/checkout/trial`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: uid, priceId })
-      });
-      const data = await res.json();
-      return NextResponse.json(data, { status: res.status });
-    } else {
-      const res = await fetch(`${origin}/api/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: uid, priceId })
-      });
-      const data = await res.json();
-      return NextResponse.json(data, { status: res.status });
-    }
+    // Delegate to the maintained endpoint (BlenderBin only)
+    const res = await fetch(`${origin}/api/checkout/trial`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: uid, priceId })
+    });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });

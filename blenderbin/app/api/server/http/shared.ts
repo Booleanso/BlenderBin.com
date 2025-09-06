@@ -408,7 +408,6 @@ export async function verifyFirebaseToken(token: string) {
     if (email && db) {
       decodedToken.has_subscription = false
       decodedToken.has_blenderbin_subscription = false
-      decodedToken.has_gizmo_subscription = false
       
       try {
         console.log(`Looking for customer with email: ${email}`)
@@ -433,7 +432,6 @@ export async function verifyFirebaseToken(token: string) {
           if (isDeveloper) {
             decodedToken.has_subscription = true
             decodedToken.has_blenderbin_subscription = true
-            decodedToken.has_gizmo_subscription = true
             console.log(`DEVELOPER ACCESS GRANTED`)
           } else {
             // Check subscriptions for regular users
@@ -447,21 +445,7 @@ export async function verifyFirebaseToken(token: string) {
             
             console.log(`BlenderBin Price IDs (Production + Test):`, blenderBinPriceIds)
             
-            // Gizmo price IDs
-            const gizmoPriceIds = [
-              // Gizmo Production Price IDs
-              process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID,
-              process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID,
-              process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID,
-              process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID,
-              // Gizmo Test Price IDs
-              process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID,
-              process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID,
-              process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID,
-              process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID,
-            ].filter(Boolean) // Remove undefined values
-            
-            console.log(`Gizmo Price IDs:`, gizmoPriceIds)
+            // Gizmo price IDs removed
             
             // Check for active subscriptions (including trials)
             const customerRef = db.collection('customers').doc(userDoc.id)
@@ -476,7 +460,6 @@ export async function verifyFirebaseToken(token: string) {
             console.log(`Found ${activeSubs.docs.length} active/trialing subscriptions`)
             
             let activeBlenderBinSubscription = false
-            let activeGizmoSubscription = false
             
             for (const sub of activeSubs.docs) {
               const subData = sub.data()
@@ -499,12 +482,7 @@ export async function verifyFirebaseToken(token: string) {
                     if (blenderBinPriceIds.includes(priceData.id)) {
                       activeBlenderBinSubscription = true
                       console.log(`✅ Found BlenderBin subscription: ${priceData.id}, status: ${subData.status}`)
-                    } else if (gizmoPriceIds.includes(priceData.id)) {
-                      activeGizmoSubscription = true
-                      console.log(`✅ Found Gizmo subscription: ${priceData.id}, status: ${subData.status}`)
-                    } else {
-                      console.log(`❓ Unknown price ID: ${priceData.id}`)
-                  }
+                    }
                 }
               } else if (subData.price?.id) {
                   // Legacy format support
@@ -512,11 +490,6 @@ export async function verifyFirebaseToken(token: string) {
                   if (blenderBinPriceIds.includes(subData.price.id)) {
                     activeBlenderBinSubscription = true
                     console.log(`✅ Found legacy BlenderBin subscription: ${subData.price.id}, status: ${subData.status}`)
-                  } else if (gizmoPriceIds.includes(subData.price.id)) {
-                    activeGizmoSubscription = true
-                    console.log(`✅ Found legacy Gizmo subscription: ${subData.price.id}, status: ${subData.status}`)
-                  } else {
-                    console.log(`❓ Unknown legacy price ID: ${subData.price.id}`)
                   }
                 } else {
                   console.log(`⚠️  Subscription has no price ID in items or price field`)
@@ -537,75 +510,17 @@ export async function verifyFirebaseToken(token: string) {
             }
             
             decodedToken.has_blenderbin_subscription = activeBlenderBinSubscription
-            decodedToken.has_gizmo_subscription = activeGizmoSubscription
+            decodedToken.has_subscription = activeBlenderBinSubscription
             
             // For AI access: grant access if user has EITHER BlenderBin OR Gizmo subscription
             // BlenderBin includes AI features, and Gizmo is specifically for AI
-            decodedToken.has_subscription = activeBlenderBinSubscription || activeGizmoSubscription
+            decodedToken.has_subscription = activeBlenderBinSubscription
             
             console.log(`FINAL RESULTS:`)
             console.log(`  BlenderBin subscription: ${activeBlenderBinSubscription}`)
-            console.log(`  Gizmo subscription: ${activeGizmoSubscription}`)
             console.log(`  Combined AI access: ${decodedToken.has_subscription}`)
             
             if (decodedToken.has_subscription) {
-              console.log(`✅ User has valid subscription access - BlenderBin: ${activeBlenderBinSubscription}, Gizmo: ${activeGizmoSubscription}`)
+              console.log(`✅ User has valid subscription access - BlenderBin: ${activeBlenderBinSubscription}`)
             } else {
-              console.log(`❌ User has no valid subscriptions`)
-            }
-          }
-        } else {
-          console.log(`❌ No customer found with email: ${email}`)
-        }
-      } catch (error) {
-        console.error('❌ Error checking subscription:', error)
-      }
-    } else {
-      console.log(`❌ No email in token or database not available`)
-    }
-    
-    console.log(`=== SUBSCRIPTION DEBUG END ===`)
-    
-    return decodedToken
-  } catch (error) {
-    throw new Error(`Invalid Firebase token: ${error}`)
-  }
-}
-
-// Queue implementation to match Python's Queue behavior
-export function createQueue() {
-  const messages: any[] = []
-  const waitingResolvers: Array<(value: any) => void> = []
-  
-  return {
-    messages,
-    waitingResolvers,
-    put: (message: any) => {
-      if (waitingResolvers.length > 0) {
-        const resolve = waitingResolvers.shift()!
-        resolve(message)
-      } else {
-        messages.push(message)
-      }
-    },
-    get: (timeout: number = 30000): Promise<any> => {
-      return new Promise((resolve, reject) => {
-        if (messages.length > 0) {
-          const message = messages.shift()
-          resolve(message)
-        } else {
-          waitingResolvers.push(resolve)
-          
-          // Set timeout to reject if no message comes
-          setTimeout(() => {
-            const index = waitingResolvers.indexOf(resolve)
-            if (index > -1) {
-              waitingResolvers.splice(index, 1)
-              reject(new Error('Queue timeout'))
-            }
-          }, timeout)
-        }
-      })
-    }
-  }
-} 
+              console.log(`

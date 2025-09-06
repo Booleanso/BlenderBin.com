@@ -168,6 +168,29 @@ export async function POST(request: Request) {
       );
     }
 
+    // Reuse an open Checkout Session if one exists recently to avoid duplicates
+    try {
+      const sessionsRef = db.collection('customers').doc(userId).collection('checkout_sessions');
+      const recent = await sessionsRef
+        .where('productType', '==', 'blenderbin')
+        .where('status', '==', 'created')
+        .orderBy('created', 'desc')
+        .limit(5)
+        .get();
+      for (const docSnap of recent.docs) {
+        const sessionId = docSnap.id;
+        try {
+          const existing = await stripe.checkout.sessions.retrieve(sessionId);
+          if (existing && (existing.status === 'open' || existing.status === 'complete' && existing.url)) {
+            console.log(`Reusing existing checkout session ${sessionId} for user ${userId}`);
+            return NextResponse.json({ sessionId: existing.id, productType: 'blenderbin', trialEnabled: true, url: (existing as any).url });
+          }
+        } catch {}
+      }
+    } catch (reuseErr) {
+      console.warn('Error while checking for reusable checkout sessions (non-fatal):', reuseErr);
+    }
+
     // Set appropriate success and cancel URLs
     const baseUrl = isDevelopment
       ? process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'
@@ -225,7 +248,7 @@ export async function POST(request: Request) {
       }
     } as const;
 
-    const idempotencyKey = `checkout:trial:${userId}:blenderbin:${actualPriceId}`;
+    const idempotencyKey = `checkout:trial:${userId}:blenderbin`;
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     // Store checkout session info

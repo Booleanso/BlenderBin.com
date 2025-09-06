@@ -15,32 +15,18 @@ const BLENDERBIN_PRICE_IDS = [
   process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID, // Test Yearly
 ].filter(Boolean); // Remove undefined values
 
-// Gizmo AI price IDs (properly named)
-const GIZMO_PRICE_IDS = [
-  // Gizmo Production Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID, // Gizmo Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID, // Gizmo Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Yearly
-  // Gizmo Test Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID, // Gizmo Test Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID, // Gizmo Test Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Yearly
-].filter(Boolean); // Remove undefined values
+// Gizmo removed
 
 // Helper function to determine subscription type
-function getSubscriptionType(priceId: string): 'blenderbin' | 'gizmo' | 'unknown' {
+function getSubscriptionType(priceId: string): 'blenderbin' | 'unknown' {
   if (BLENDERBIN_PRICE_IDS.includes(priceId)) {
     return 'blenderbin';
-  } else if (GIZMO_PRICE_IDS.includes(priceId)) {
-    return 'gizmo';
   }
   return 'unknown';
 }
 
 // Helper function to determine tier based on price ID and product type
-function getTierFromPriceId(priceId: string, productType: 'blenderbin' | 'gizmo'): string {
+function getTierFromPriceId(priceId: string, productType: 'blenderbin'): string {
   if (productType === 'blenderbin') {
     // BlenderBin only has monthly/yearly (no business tier)
     if (priceId === process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID || 
@@ -48,15 +34,6 @@ function getTierFromPriceId(priceId: string, productType: 'blenderbin' | 'gizmo'
       return 'yearly';
     }
     return 'monthly'; // Default for BlenderBin
-  } else if (productType === 'gizmo') {
-    // Gizmo has business tier (using properly named variables)
-    if (priceId === process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID ||
-        priceId === process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID ||
-        priceId === process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID ||
-        priceId === process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID) {
-      return 'business';
-    }
-    return 'pro'; // Default for Gizmo
   }
   return 'unknown';
 }
@@ -89,6 +66,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
     
     console.log(`Processing webhook event: ${event.type}`);
+    
+    // Idempotency: ensure we process each event only once
+    try {
+      const eventRef = db.collection('webhook_events').doc(event.id);
+      // create() will throw if the document already exists
+      await eventRef.create({
+        id: event.id,
+        type: event.type,
+        created: new Date(),
+        source: 'stripe'
+      });
+    } catch (idempoErr: any) {
+      // Duplicate delivery - acknowledge and stop further processing
+      console.log(`Duplicate webhook event received and ignored: ${event.id}`);
+      return NextResponse.json({ received: true, duplicate: true });
+    }
     
     // Handle different event types
     switch (event.type) {
@@ -190,33 +183,41 @@ async function handleSubscriptionCreated(subscription: any) {
       return; // Skip processing unknown subscription types
     }
     
-    // Guard: prevent duplicate BlenderBin subscriptions for same user
+    // Guard: prevent duplicate BlenderBin subscriptions for same user (Stripe-side authoritative)
     if (productType === 'blenderbin') {
-      const subSnap = await db
-        .collection('customers')
-        .doc(userId)
-        .collection('subscriptions')
-        .where('status', 'in', ['active', 'trialing'])
-        .get();
-
-      const relevantPriceIds = BLENDERBIN_PRICE_IDS;
-      const hasAnotherActive = subSnap.docs.some((doc) => {
-        if (doc.id === subscriptionId) return false;
-        const data = doc.data();
-        const isActiveOrTrial = data.status === 'active' || data.status === 'trialing';
-        if (!isActiveOrTrial) return false;
-        return (data.items || []).some((item: any) => item?.price?.id && relevantPriceIds.includes(item.price.id));
-      });
-
-      if (hasAnotherActive) {
-        console.log(`Duplicate BlenderBin subscription detected for user ${userId}. Canceling new subscription ${subscriptionId}`);
-        try {
-          await stripe.subscriptions.cancel(subscriptionId);
-          console.log(`Canceled duplicate BlenderBin subscription ${subscriptionId}`);
-        } catch (cancelErr) {
-          console.error('Error canceling duplicate subscription:', cancelErr);
+      try {
+        const allSubs = await stripe.subscriptions.list({
+          customer: customerId,
+          status: 'all',
+          limit: 100
+        });
+        const relevantStatuses = new Set(['trialing', 'active', 'incomplete', 'past_due', 'unpaid']);
+        const relevantPriceIds = new Set(BLENDERBIN_PRICE_IDS);
+        const related = allSubs.data.filter((sub: any) => {
+          const matchesPrice = sub.items.data.some((item: any) => item?.price?.id && relevantPriceIds.has(item.price.id));
+          return matchesPrice && relevantStatuses.has(sub.status);
+        });
+        if (related.length > 1) {
+          // Keep the oldest by created, cancel the rest
+          const sorted = related.sort((a: any, b: any) => a.created - b.created);
+          const keepId = sorted[0].id;
+          for (const dup of sorted) {
+            if (dup.id !== keepId) {
+              try {
+                await stripe.subscriptions.cancel(dup.id);
+                console.log(`Canceled duplicate BlenderBin subscription ${dup.id}, kept ${keepId}`);
+              } catch (cancelErr) {
+                console.error(`Error canceling duplicate subscription ${dup.id}:`, cancelErr);
+              }
+            }
+          }
+          // If the current event's subscription was canceled above, stop processing it
+          if (subscriptionId !== keepId) {
+            return;
+          }
         }
-        return; // Do not record duplicate
+      } catch (stripeErr) {
+        console.error('Error checking/canceling duplicate subscriptions via Stripe:', stripeErr);
       }
     }
 
@@ -261,11 +262,6 @@ async function handleSubscriptionCreated(subscription: any) {
       userUpdates.stripeRole = subscription.status === 'trialing' || subscription.status === 'active' ? tier : 'free';
       userUpdates.subscriptionStatus = subscription.status;
       userUpdates.subscriptionId = subscriptionId;
-    } else if (productType === 'gizmo') {
-      // For Gizmo, users get pro access during trial and active periods
-      userUpdates.gizmoSubscription = subscription.status === 'trialing' || subscription.status === 'active' ? tier : 'free';
-      userUpdates.gizmoSubscriptionStatus = subscription.status;
-      userUpdates.gizmoSubscriptionId = subscriptionId;
     }
     
     await db.collection('users').doc(userId).set(userUpdates, { merge: true });
@@ -381,8 +377,6 @@ async function handleSubscriptionUpdated(subscription: any) {
     
     if (productType === 'blenderbin') {
       userUpdates.subscriptionStatus = subscription.status;
-    } else if (productType === 'gizmo') {
-      userUpdates.gizmoSubscriptionStatus = subscription.status;
     }
     
     await db.collection('users').doc(userId).update(userUpdates);
@@ -441,9 +435,6 @@ async function handleSubscriptionDeleted(subscription: any) {
     if (productType === 'blenderbin') {
       userUpdates.stripeRole = 'free';
       userUpdates.subscriptionStatus = 'canceled';
-    } else if (productType === 'gizmo') {
-      userUpdates.gizmoSubscription = 'free';
-      userUpdates.gizmoSubscriptionStatus = 'canceled';
     }
     
     await db.collection('users').doc(userId).update(userUpdates);
@@ -571,10 +562,6 @@ async function handlePaymentSucceeded(invoice: any) {
         userUpdates.subscriptionStatus = 'active';
         userUpdates.stripeRole = 'pro'; // Ensure they keep pro access after trial
         console.log('Updated BlenderBin user to active subscription status after payment');
-      } else if (productType === 'gizmo') {
-        userUpdates.gizmoSubscriptionStatus = 'active';
-        userUpdates.gizmoSubscription = 'pro'; // Ensure they keep pro access after trial
-        console.log('Updated Gizmo user to active subscription status after payment');
       }
       
       await db.collection('users').doc(userId).update(userUpdates);

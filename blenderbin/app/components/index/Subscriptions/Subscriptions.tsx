@@ -30,6 +30,7 @@ const Subscriptions = () => {
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [cancelError, setCancelError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [startingCheckout, setStartingCheckout] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -101,6 +102,8 @@ const Subscriptions = () => {
     }
     
     try {
+      if (startingCheckout) return;
+      setStartingCheckout(true);
       const priceId = isYearly 
         ? process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID 
         : process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
@@ -133,6 +136,8 @@ const Subscriptions = () => {
     } catch (error) {
       console.error('BlenderBin trial checkout error:', error);
       // You might want to show an error message to the user here
+    } finally {
+      setStartingCheckout(false);
     }
   };
 
@@ -323,8 +328,9 @@ const Subscriptions = () => {
             ? 'bg-white text-black hover:bg-zinc-100 hover:scale-105' 
             : 'bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700 hover:scale-105'
         }`}
+        disabled={startingCheckout}
       >
-        Start 7-Day Free Trial
+        {startingCheckout ? 'Starting…' : 'Start 7-Day Free Trial'}
       </button>
     );
   };

@@ -30,28 +30,14 @@ const BLENDERBIN_PRICE_IDS = [
   process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID, // Test Yearly
 ].filter(Boolean); // Remove undefined values
 
-// Gizmo AI price IDs (properly named)
-const GIZMO_PRICE_IDS = [
-  // Gizmo Production Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID, // Gizmo Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID, // Gizmo Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Yearly
-  // Gizmo Test Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID, // Gizmo Test Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID, // Gizmo Test Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Yearly
-].filter(Boolean); // Remove undefined values
+// Gizmo removed
 
 // Helper function to check if price ID belongs to a product
 function isBlenderBinPrice(priceId: string): boolean {
   return BLENDERBIN_PRICE_IDS.includes(priceId);
 }
 
-function isGizmoPrice(priceId: string): boolean {
-  return GIZMO_PRICE_IDS.includes(priceId);
-}
+// Gizmo removed
 
 // Helper function to fetch subscription information
 async function fetchSubscriptionInfo(user: any) {
@@ -61,13 +47,9 @@ async function fetchSubscriptionInfo(user: any) {
     
     if (!email) {
       return {
-        // BlenderBin subscription info
         has_subscription: false,
         subscription_tier: "free",
-        usage_based_pricing_enabled: false,
-        // Gizmo AI subscription info
-        has_gizmo_subscription: false,
-        gizmo_subscription_tier: "free"
+        usage_based_pricing_enabled: false
       };
     }
     
@@ -81,9 +63,7 @@ async function fetchSubscriptionInfo(user: any) {
       return {
         has_subscription: false,
         subscription_tier: "free",
-        usage_based_pricing_enabled: false,
-        has_gizmo_subscription: false,
-        gizmo_subscription_tier: "free"
+        usage_based_pricing_enabled: false
       };
     }
     
@@ -98,16 +78,12 @@ async function fetchSubscriptionInfo(user: any) {
         has_subscription: true,
         subscription_tier: "pro",
         usage_based_pricing_enabled: false,
-        has_gizmo_subscription: true,
-        gizmo_subscription_tier: "pro",
         is_developer: true
       };
     }
     
     let activeBlenderBinSubscription = false;
-    let activeGizmoSubscription = false;
     let blenderBinTier = "free";
-    let gizmoTier = "free";
     
     // Step 3: Check direct subscriptions in customers/{userId}/subscriptions
     console.log("Checking direct subscriptions...");
@@ -133,11 +109,6 @@ async function fetchSubscriptionInfo(user: any) {
                 // Users get pro access during trial and active subscription
                 blenderBinTier = "pro";
                 console.log(`Found active BlenderBin subscription with price ID: ${priceId}, status: ${subData.status}`);
-              } else if (isGizmoPrice(priceId)) {
-                activeGizmoSubscription = true;
-                // Users get pro access during trial and active subscription
-                gizmoTier = "pro";
-                console.log(`Found active Gizmo AI subscription with price ID: ${priceId}, status: ${subData.status}`);
               }
             }
           }
@@ -148,17 +119,13 @@ async function fetchSubscriptionInfo(user: any) {
             activeBlenderBinSubscription = true;
             blenderBinTier = "pro";
             console.log(`Found active BlenderBin subscription with price ID: ${priceId}, status: ${subData.status}`);
-          } else if (isGizmoPrice(priceId)) {
-            activeGizmoSubscription = true;
-            gizmoTier = "pro";
-            console.log(`Found active Gizmo AI subscription with price ID: ${priceId}, status: ${subData.status}`);
           }
         }
       }
     }
     
     // Step 4: Check product subscriptions if no direct subscription found
-    if (!activeBlenderBinSubscription && !activeGizmoSubscription) {
+    if (!activeBlenderBinSubscription) {
       console.log("Checking product subscriptions...");
       const productsQuery = await customerRef.collection('products')
         .where('status', 'in', ['trialing', 'active'])
@@ -177,10 +144,6 @@ async function fetchSubscriptionInfo(user: any) {
                 activeBlenderBinSubscription = true;
                 blenderBinTier = "pro";
                 console.log(`Found active BlenderBin product subscription with price ID: ${priceId}`);
-              } else if (isGizmoPrice(priceId)) {
-                activeGizmoSubscription = true;
-                gizmoTier = "pro";
-                console.log(`Found active Gizmo AI product subscription with price ID: ${priceId}`);
               }
             }
           }
@@ -189,7 +152,7 @@ async function fetchSubscriptionInfo(user: any) {
     }
     
     // Step 5: Check Stripe subscriptions using customer Stripe ID
-    if (!activeBlenderBinSubscription && !activeGizmoSubscription) {
+    if (!activeBlenderBinSubscription) {
       console.log("Checking Stripe subscriptions...");
       const stripeId = userData.stripeid;
       
@@ -213,10 +176,6 @@ async function fetchSubscriptionInfo(user: any) {
                   activeBlenderBinSubscription = true;
                   blenderBinTier = "pro";
                   console.log(`Found active BlenderBin Stripe subscription with price ID: ${priceId}`);
-                } else if (isGizmoPrice(priceId)) {
-                  activeGizmoSubscription = true;
-                  gizmoTier = "pro";
-                  console.log(`Found active Gizmo AI Stripe subscription with price ID: ${priceId}`);
                 }
               }
             }
@@ -226,10 +185,6 @@ async function fetchSubscriptionInfo(user: any) {
               activeBlenderBinSubscription = true;
               blenderBinTier = "pro";
               console.log(`Found active BlenderBin Stripe subscription with price ID: ${priceId}`);
-            } else if (isGizmoPrice(priceId)) {
-              activeGizmoSubscription = true;
-              gizmoTier = "pro";
-              console.log(`Found active Gizmo AI Stripe subscription with price ID: ${priceId}`);
             }
           }
         }
@@ -237,14 +192,9 @@ async function fetchSubscriptionInfo(user: any) {
     }
     
     const result = {
-      // BlenderBin subscription info
       has_subscription: activeBlenderBinSubscription,
       subscription_tier: blenderBinTier,
-      usage_based_pricing_enabled: false, // Set based on your logic
-      // Gizmo AI subscription info
-      has_gizmo_subscription: activeGizmoSubscription,
-      gizmo_subscription_tier: gizmoTier,
-      // Developer flag
+      usage_based_pricing_enabled: false,
       is_developer: isDeveloper
     };
     
@@ -257,9 +207,7 @@ async function fetchSubscriptionInfo(user: any) {
     return {
       has_subscription: false,
       subscription_tier: "free",
-      usage_based_pricing_enabled: false,
-      has_gizmo_subscription: false,
-      gizmo_subscription_tier: "free"
+      usage_based_pricing_enabled: false
     };
   }
 }

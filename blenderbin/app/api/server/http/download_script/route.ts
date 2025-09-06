@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     console.log(`Token verified for user ${decodedToken.uid}:`, {
       has_subscription: decodedToken.has_subscription || false,
       has_blenderbin_subscription: decodedToken.has_blenderbin_subscription || false,
-      has_gizmo_subscription: decodedToken.has_gizmo_subscription || false,
       is_developer: decodedToken.is_developer || false
     })
   } catch (error) {
@@ -77,7 +76,6 @@ export async function POST(request: NextRequest) {
         redirectUrl: "/pricing/blenderbin",
         debug: {
           hasBlenderBin: hasBlenderBinSubscription,
-          hasGizmo: decodedToken.has_gizmo_subscription || false,
           isDeveloper: isDeveloper,
           scriptType: "premium_addon"
         }

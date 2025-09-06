@@ -13,26 +13,12 @@ const BLENDERBIN_PRICE_IDS = [
   process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID, // Test Yearly
 ].filter(Boolean); // Remove undefined values
 
-// Gizmo AI price IDs (properly named)
-const GIZMO_PRICE_IDS = [
-  // Gizmo Production Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_PRICE_ID, // Gizmo Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_PRICE_ID, // Gizmo Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_PRICE_ID, // Gizmo Business Yearly
-  // Gizmo Test Price IDs
-  process.env.NEXT_PUBLIC_GIZMO_STRIPE_TEST_PRICE_ID, // Gizmo Test Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_STRIPE_TEST_PRICE_ID, // Gizmo Test Yearly
-  process.env.NEXT_PUBLIC_GIZMO_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Monthly
-  process.env.NEXT_PUBLIC_GIZMO_YEARLY_BUSINESS_STRIPE_TEST_PRICE_ID, // Gizmo Test Business Yearly
-].filter(Boolean); // Remove undefined values
+// Gizmo removed
 
 // Helper function to determine subscription type
-function getSubscriptionType(priceId: string): 'blenderbin' | 'gizmo' | 'unknown' {
+function getSubscriptionType(priceId: string): 'blenderbin' | 'unknown' {
   if (BLENDERBIN_PRICE_IDS.includes(priceId)) {
     return 'blenderbin';
-  } else if (GIZMO_PRICE_IDS.includes(priceId)) {
-    return 'gizmo';
   }
   return 'unknown';
 }
@@ -40,9 +26,9 @@ function getSubscriptionType(priceId: string): 'blenderbin' | 'gizmo' | 'unknown
 // Check on Stripe for any existing active/trialing subscriptions for this customer and product type
 async function hasExistingStripeSubscriptionForProduct(
   stripeCustomerId: string,
-  productType: 'blenderbin' | 'gizmo'
+  productType: 'blenderbin'
 ): Promise<boolean> {
-  const relevantPriceIds = productType === 'blenderbin' ? BLENDERBIN_PRICE_IDS : GIZMO_PRICE_IDS;
+  const relevantPriceIds = BLENDERBIN_PRICE_IDS;
 
   // Fetch up to 100 recent subscriptions and filter locally by status and price
   const subs = await stripe.subscriptions.list({
@@ -58,7 +44,7 @@ async function hasExistingStripeSubscriptionForProduct(
 }
 
 // Helper function to check if user has existing subscription for specific product
-async function checkExistingSubscription(userId: string, productType: 'blenderbin' | 'gizmo'): Promise<boolean> {
+async function checkExistingSubscription(userId: string, productType: 'blenderbin'): Promise<boolean> {
   const subscriptionsSnapshot = await db
     .collection('customers')
     .doc(userId)
@@ -71,7 +57,7 @@ async function checkExistingSubscription(userId: string, productType: 'blenderbi
   }
 
   // Filter subscriptions by product type
-  const relevantPriceIds = productType === 'blenderbin' ? BLENDERBIN_PRICE_IDS : GIZMO_PRICE_IDS;
+  const relevantPriceIds = BLENDERBIN_PRICE_IDS;
   
   for (const subDoc of subscriptionsSnapshot.docs) {
     const subData = subDoc.data();
@@ -242,15 +228,36 @@ export async function POST(request: Request) {
       );
     }
 
+    // Reuse an open Checkout Session if one exists to avoid duplicates
+    try {
+      const sessionsRef = db.collection('customers').doc(userId).collection('checkout_sessions');
+      const recent = await sessionsRef
+        .where('productType', '==', productType)
+        .where('status', '==', 'created')
+        .orderBy('created', 'desc')
+        .limit(5)
+        .get();
+      for (const docSnap of recent.docs) {
+        const sessionId = docSnap.id;
+        try {
+          const existing = await stripe.checkout.sessions.retrieve(sessionId);
+          if (existing && (existing.status === 'open' || existing.status === 'complete' && existing.url)) {
+            console.log(`Reusing existing ${productType} checkout session ${sessionId} for user ${userId}`);
+            return NextResponse.json({ sessionId: existing.id, productType, url: (existing as any).url });
+          }
+        } catch {}
+      }
+    } catch (reuseErr) {
+      console.warn('Error while checking for reusable checkout sessions (non-fatal):', reuseErr);
+    }
+
     // Set appropriate success and cancel URLs based on environment and product type
     const baseUrl = isDevelopment
       ? process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'
       : 'https://blenderbin.com';
       
     // Set product-specific URLs
-    const successUrl = productType === 'blenderbin' 
-      ? `${baseUrl}/download?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`
-      : `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}&userId=${userId}&product=gizmo`;
+    const successUrl = `${baseUrl}/download?session_id={CHECKOUT_SESSION_ID}&userId=${userId}`;
       
     const cancelUrl = `${baseUrl}/pricing`;
       
@@ -301,7 +308,7 @@ export async function POST(request: Request) {
       }
     } as const;
 
-    const idempotencyKey = `checkout:${userId}:${productType}:${actualPriceId}`;
+    const idempotencyKey = `checkout:${userId}:${productType}`;
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     // Store checkout session info with product type
