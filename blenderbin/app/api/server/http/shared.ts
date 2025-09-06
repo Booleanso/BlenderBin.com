@@ -554,10 +554,18 @@ export async function verifyFirebaseToken(token: string) {
                     process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID
                   ].filter(Boolean)
                   const found = subs.data.find(sub => {
-                    const byPrice = sub.items?.data?.some(it => it?.price?.id && relevantPriceIds.includes(it.price.id))
+                    const entitledStatus = (
+                      sub.status === 'trialing' ||
+                      sub.status === 'active' ||
+                      (sub.status === 'incomplete' && typeof sub.trial_end === 'number' && sub.trial_end * 1000 > Date.now())
+                    )
+                    if (!entitledStatus) return false
+                    // Accept if explicitly BlenderBin via metadata or known price IDs
                     const byMetadata = (sub.metadata && (sub.metadata.productType === 'blenderbin' || (sub.metadata as any).product_type === 'blenderbin'))
-                    const entitledStatus = (sub.status === 'trialing' || sub.status === 'active' || (sub.status === 'incomplete' && typeof sub.trial_end === 'number' && sub.trial_end * 1000 > Date.now()))
-                    return (byPrice || byMetadata) && entitledStatus
+                    const byPrice = sub.items?.data?.some(it => it?.price?.id && relevantPriceIds.includes(it.price.id))
+                    if (byMetadata || byPrice) return true
+                    // Fallback: Gizmo has been removed; treat any entitled subscription for this customer as BlenderBin
+                    return true
                   })
                   if (found) {
                     // Best-effort backfill subscription doc for future fast checks
