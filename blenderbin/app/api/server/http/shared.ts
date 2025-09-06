@@ -523,4 +523,61 @@ export async function verifyFirebaseToken(token: string) {
             if (decodedToken.has_subscription) {
               console.log(`✅ User has valid subscription access - BlenderBin: ${activeBlenderBinSubscription}`)
             } else {
-              console.log(`
+              console.log(`❌ User has no valid subscriptions`)
+            }
+          }
+        } else {
+          console.log(`❌ No customer found with email: ${email}`)
+        }
+      } catch (error) {
+        console.error('❌ Error checking subscription:', error)
+      }
+    } else {
+      console.log(`❌ No email in token or database not available`)
+    }
+    
+    console.log(`=== SUBSCRIPTION DEBUG END ===`)
+    
+    return decodedToken
+  } catch (error) {
+    throw new Error(`Invalid Firebase token: ${error}`)
+  }
+}
+
+// Queue implementation to match Python's Queue behavior
+export function createQueue() {
+  const messages: any[] = []
+  const waitingResolvers: Array<(value: any) => void> = []
+  
+  return {
+    messages,
+    waitingResolvers,
+    put: (message: any) => {
+      if (waitingResolvers.length > 0) {
+        const resolve = waitingResolvers.shift()!
+        resolve(message)
+      } else {
+        messages.push(message)
+      }
+    },
+    get: (timeout: number = 30000): Promise<any> => {
+      return new Promise((resolve, reject) => {
+        if (messages.length > 0) {
+          const message = messages.shift()
+          resolve(message)
+        } else {
+          waitingResolvers.push(resolve)
+          
+          // Set timeout to reject if no message comes
+          setTimeout(() => {
+            const index = waitingResolvers.indexOf(resolve)
+            if (index > -1) {
+              waitingResolvers.splice(index, 1)
+              reject(new Error('Queue timeout'))
+            }
+          }, timeout)
+        }
+      })
+    }
+  }
+}
