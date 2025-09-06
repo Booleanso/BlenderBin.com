@@ -192,19 +192,21 @@ export async function POST(request: Request) {
     // Reuse an open Checkout Session if one exists recently to avoid duplicates
     try {
       const sessionsRef = db.collection('customers').doc(userId).collection('checkout_sessions');
+      // Avoid composite index requirement by filtering status in-memory
       const recent = await sessionsRef
         .where('productType', '==', 'blenderbin')
-        .where('status', '==', 'created')
         .orderBy('created', 'desc')
         .limit(5)
         .get();
       for (const docSnap of recent.docs) {
+        const data = docSnap.data();
+        if (data.status && data.status !== 'created') continue;
         const sessionId = docSnap.id;
         try {
           const existing = await stripe.checkout.sessions.retrieve(sessionId);
-          if (existing && (existing.status === 'open' || existing.status === 'complete' && existing.url)) {
+          if (existing && (existing.status === 'open' || existing.status === 'complete' && (existing as any).url)) {
             console.log(`Reusing existing checkout session ${sessionId} for user ${userId}`);
-            return NextResponse.json({ sessionId: existing.id, productType: 'blenderbin', trialEnabled: true, url: (existing as any).url });
+            return NextResponse.json({ sessionId: existing.id, productType: 'blenderbin', trialEnabled: trialEligible, url: (existing as any).url });
           }
         } catch {}
       }
@@ -223,8 +225,7 @@ export async function POST(request: Request) {
     // Create checkout session with BlenderBin trial setup
     const sessionParams = {
       customer: stripeCustomerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
+      mode: 'subscription' as 'subscription',
       line_items: [{
         price: actualPriceId,
         quantity: 1
@@ -234,7 +235,7 @@ export async function POST(request: Request) {
           trial_period_days: 7,
           trial_settings: {
             end_behavior: {
-              missing_payment_method: 'cancel'
+              missing_payment_method: 'cancel' as 'cancel'
             }
           }
         }),
@@ -247,17 +248,13 @@ export async function POST(request: Request) {
           originalPriceId: priceId
         }
       },
-      payment_method_collection: 'always', // Always collect payment method for trials
+      payment_method_collection: 'always' as 'always', // Always collect payment method for trials
       automatic_tax: { enabled: true },
       success_url: successUrl,
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
-      billing_address_collection: 'required',
+      billing_address_collection: 'required' as 'required',
       tax_id_collection: { enabled: true },
-      customer_update: {
-        name: 'auto',
-        address: 'auto'
-      },
       client_reference_id: userId, // Critical for webhooks
       metadata: {
         firebaseUID: userId,
@@ -269,9 +266,10 @@ export async function POST(request: Request) {
         trialType: 'blenderbin_trial',
         createdAt: new Date().toISOString()
       }
-    } as const;
+    };
 
-    const idempotencyKey = `checkout:trial:${userId}:blenderbin`;
+    // Include key parts that affect session params to avoid Stripe idempotency conflicts on retries
+    const idempotencyKey = `checkout:trial:${userId}:blenderbin:${actualPriceId}:${trialEligible ? 'trial' : 'notrial'}`;
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     // Store checkout session info
@@ -292,7 +290,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       sessionId: session.id, 
       productType: 'blenderbin',
-      trialEnabled,
+      trialEnabled: trialEligible,
       url: session.url
     });
   } catch (error: unknown) {
