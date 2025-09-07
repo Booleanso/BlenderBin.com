@@ -256,6 +256,7 @@ export async function POST(request: Request) {
       billing_address_collection: 'required' as 'required',
       tax_id_collection: { enabled: true },
       customer_update: {
+        name: 'auto' as 'auto',
         address: 'auto' as 'auto'
       },
       client_reference_id: userId, // Critical for webhooks
