@@ -546,14 +546,14 @@ export async function verifyFirebaseToken(token: string) {
                 }
                 if (stripeCustomerId) {
                   console.log('No Firestore sub found; checking Stripe directly...')
-                  const subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 20 })
+                  let subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 20 })
                   const relevantPriceIds = [
                     process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
                     process.env.NEXT_PUBLIC_YEARLY_STRIPE_PRICE_ID,
                     process.env.NEXT_PUBLIC_STRIPE_TEST_PRICE_ID,
                     process.env.NEXT_PUBLIC_YEARLY_STRIPE_TEST_PRICE_ID
                   ].filter(Boolean)
-                  const found = subs.data.find(sub => {
+                  let found = subs.data.find(sub => {
                     const entitledStatus = (
                       sub.status === 'trialing' ||
                       sub.status === 'active' ||
@@ -567,6 +567,30 @@ export async function verifyFirebaseToken(token: string) {
                     // Fallback: Gizmo has been removed; treat any entitled subscription for this customer as BlenderBin
                     return true
                   })
+                  // If nothing found under the stored stripeId, it may be stale (e.g., test vs live). Try searching by email.
+                  if (!found && email) {
+                    try {
+                      console.log('No subs under stored stripeId; searching Stripe by email for updated customer...')
+                      const search = await stripe.customers.list({ email, limit: 3 })
+                      const alt = search.data.find(c => c.id !== stripeCustomerId)
+                      if (alt) {
+                        console.log(`Found alternate Stripe customer for email. Updating stripeId to ${alt.id}`)
+                        await customerRef.set({ stripeId: alt.id, email }, { merge: true })
+                        stripeCustomerId = alt.id
+                        subs = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'all', limit: 20 })
+                        found = subs.data.find(sub => {
+                          const entitledStatus = (
+                            sub.status === 'trialing' ||
+                            sub.status === 'active' ||
+                            (sub.status === 'incomplete' && typeof sub.trial_end === 'number' && sub.trial_end * 1000 > Date.now())
+                          )
+                          return entitledStatus
+                        })
+                      }
+                    } catch (altErr) {
+                      console.log('Alternate customer search failed:', altErr)
+                    }
+                  }
                   if (found) {
                     // Best-effort backfill subscription doc for future fast checks
                     try {
