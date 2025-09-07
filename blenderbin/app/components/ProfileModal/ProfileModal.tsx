@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { X, Settings, CreditCard, Download, User, Box, Bot } from 'lucide-react';
 import { auth, db } from '../../lib/firebase-client';
-import { updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, GoogleAuthProvider, reauthenticateWithPopup } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import axios from 'axios';
 import Image from 'next/image';
@@ -45,6 +45,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
   const [password, setPassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const isGoogleUser = !!user?.providerData?.some((p: any) => p?.providerId === 'google.com');
   
   // Saving state
   const [saveMessage, setSaveMessage] = useState('');
@@ -181,14 +182,37 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
       setDeleteError('');
       
       // Re-authenticate user before deleting account
-      const credential = EmailAuthProvider.credential(
-        user.email || '',
-        password
-      );
-      
-      await reauthenticateWithCredential(user, credential);
-      
-      // Delete the user
+      if (isGoogleUser) {
+        const provider = new GoogleAuthProvider();
+        await reauthenticateWithPopup(user, provider);
+      } else {
+        const credential = EmailAuthProvider.credential(
+          user.email || '',
+          password
+        );
+        await reauthenticateWithCredential(user, credential);
+      }
+
+      // Call backend cleanup (cancel Stripe, remove Firestore docs) before auth deletion
+      try {
+        const idToken = await user.getIdToken();
+        const resp = await fetch('/api/account/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ uid: user.uid })
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          console.error('Cleanup route failed', err);
+        }
+      } catch (cleanupErr) {
+        console.error('Error calling cleanup route:', cleanupErr);
+      }
+
+      // Delete the user from Firebase Auth
       await deleteUser(user);
       
       // Redirect to home page
