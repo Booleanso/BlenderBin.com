@@ -38,17 +38,49 @@ export async function POST(req: NextRequest) {
     const custRef = db.collection('customers').doc(uid)
     const custDoc = await custRef.get()
     const custData: any = custDoc.exists ? custDoc.data() : {}
-    const stripeId: string | undefined = custData?.stripeId
+    let stripeId: string | undefined = custData?.stripeId
+    const email: string | undefined = custData?.email
 
     // Cancel active/trialing subs
+    let canceledCount = 0
     if (stripeId) {
       try {
         const subs = await stripe.subscriptions.list({ customer: stripeId, status: 'all', limit: 100 })
         for (const sub of subs.data) {
           if (['trialing', 'active', 'incomplete', 'past_due', 'unpaid'].includes(sub.status)) {
-            try { await stripe.subscriptions.cancel(sub.id) } catch {}
+            try { await stripe.subscriptions.cancel(sub.id); canceledCount++ } catch {}
           }
         }
+      } catch {}
+    }
+
+    // If no stripeId or nothing found, try to locate customer by email as a fallback
+    if (!stripeId && email) {
+      try {
+        const search = await stripe.customers.list({ email, limit: 3 })
+        if (search.data[0]) {
+          stripeId = search.data[0].id
+        }
+      } catch {}
+    }
+
+    let customerDeleted = false
+    if (stripeId) {
+      try {
+        // Try once more to cancel any remaining subs (race safety)
+        const subs = await stripe.subscriptions.list({ customer: stripeId, status: 'all', limit: 100 })
+        for (const sub of subs.data) {
+          if (['trialing', 'active', 'incomplete', 'past_due', 'unpaid'].includes(sub.status)) {
+            try { await stripe.subscriptions.cancel(sub.id); canceledCount++ } catch {}
+          }
+        }
+      } catch {}
+
+      // Attempt to delete the Stripe customer (optional, best-effort)
+      try {
+        const result = await stripe.customers.del(stripeId)
+        // @ts-ignore
+        customerDeleted = !!result?.deleted
       } catch {}
     }
 
@@ -73,7 +105,7 @@ export async function POST(req: NextRequest) {
       await batch.commit()
     } catch {}
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, cancelled: canceledCount, customerDeleted })
   } catch (e: any) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
   }

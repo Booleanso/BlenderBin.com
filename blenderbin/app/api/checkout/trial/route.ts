@@ -273,7 +273,9 @@ export async function POST(request: Request) {
     };
 
     // Include key parts that affect session params to avoid Stripe idempotency conflicts on retries
-    const idempotencyKey = `checkout:trial:${userId}:blenderbin:${actualPriceId}:${trialEligible ? 'trial' : 'notrial'}`;
+    // Bump version when session params change to avoid Stripe idempotency_error on schema changes
+    const IDEMPOTENCY_VERSION = 'v2';
+    const idempotencyKey = `checkout:trial:${IDEMPOTENCY_VERSION}:${userId}:blenderbin:${actualPriceId}:${trialEligible ? 'trial' : 'notrial'}`;
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     // Store checkout session info
