@@ -34,6 +34,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Get request body for return URL if provided
     const body = await request.json().catch(() => ({}));
     const { returnUrl } = body;
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const origin = request.headers.get('origin');
+    const baseUrl = returnUrl?.startsWith('http') ? undefined : (origin || process.env.NEXT_PUBLIC_URL || (isDevelopment ? 'http://localhost:3000' : 'https://blenderbin.com'));
     
     // Find user by uid
     const userDoc = await db.collection('users').doc(uid).get();
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // Now create a billing portal session with the new customer
         const session = await stripe.billingPortal.sessions.create({
           customer: customer.id,
-          return_url: returnUrl || `${request.headers.get('origin')}/dashboard`,
+          return_url: returnUrl || `${baseUrl}/dashboard`,
         });
         
         return NextResponse.json({ 
@@ -90,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Create a billing portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: userData.stripeCustomerId,
-      return_url: returnUrl || `${request.headers.get('origin')}/dashboard`,
+      return_url: returnUrl || `${baseUrl}/dashboard`,
     });
     
     return NextResponse.json({ 

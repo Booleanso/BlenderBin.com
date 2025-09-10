@@ -17,6 +17,9 @@ interface ProfileModalProps {
   user: any;
 }
 
+// Fallback Stripe Customer Portal login link
+const STRIPE_PORTAL_LOGIN_URL = 'https://billing.stripe.com/p/login/9B68wPdvQ6QB9TZbnU5J600';
+
 const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) => {
   const router = useRouter();
   const [subscription, setSubscription] = useState<any>(null);
@@ -271,7 +274,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
 
   const handleRedownload = async () => {
     try {
-      const response = await fetch(`/api/download?userId=${user?.uid}`);
+      // Ensure we have a fresh token
+      const token = await user.getIdToken(true);
+      // Call API with Authorization for non-Safari
+      const response = await fetch(`/api/download?userId=${user?.uid}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
       
       if (!response.ok) {
@@ -280,7 +288,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
       }
 
       if (data.downloadUrl) {
-        window.location.href = data.downloadUrl;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) {
+          const base = typeof window !== 'undefined' ? window.location.origin : ''
+          const proxied = `${base}/api/download/file?userId=${encodeURIComponent(user?.uid || '')}&token=${encodeURIComponent(token)}`
+          window.location.href = proxied
+        } else {
+          window.location.href = data.downloadUrl;
+        }
       }
     } catch (error) {
       console.error('Download error:', error);
@@ -414,12 +429,22 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
       } else if (response.data.redirectUrl) {
         // If there's no Stripe customer yet, redirect to upgrade page
         router.push(response.data.redirectUrl);
+      } else {
+        // Fallback: open general Stripe portal login link
+        const loginUrl = user?.email 
+          ? `${STRIPE_PORTAL_LOGIN_URL}?prefilled_email=${encodeURIComponent(user.email)}`
+          : STRIPE_PORTAL_LOGIN_URL;
+        window.open(loginUrl, '_blank');
       }
     } catch (error) {
       console.error('Error opening BlenderBin billing portal:', error);
-      
-      // Show error message to user
-      alert('Failed to open BlenderBin billing portal. Please try again later.');
+      // Fallback directly to Stripe portal login link
+      try {
+        const loginUrl = user?.email 
+          ? `${STRIPE_PORTAL_LOGIN_URL}?prefilled_email=${encodeURIComponent(user.email)}`
+          : STRIPE_PORTAL_LOGIN_URL;
+        window.open(loginUrl, '_blank');
+      } catch {}
     } finally {
       setIsBlenderBinBillingLoading(false);
     }
@@ -473,55 +498,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
     }
   };
 
-  // Force sync function to manually sync subscription data from Stripe
-  const handleForceSync = async () => {
-    if (!user) return;
-    
-    try {
-      setSaveMessage('Syncing subscription data from Stripe...');
-      setSaveError(false);
-      
-      const token = await user.getIdToken();
-      const response = await fetch(`/api/subscription/force-sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId: user.uid })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Force sync result:', data);
-        
-        if (data.syncedSubscriptions > 0) {
-          setSaveMessage(`Successfully synced ${data.syncedSubscriptions} subscription(s) from Stripe!`);
-          setSaveError(false);
-          
-          // Refresh subscription data after successful sync
-          setTimeout(async () => {
-            await fetchSubscriptionData();
-          }, 1500);
-        } else {
-          setSaveMessage('No missing subscriptions found to sync.');
-          setSaveError(false);
-        }
-      } else {
-        const errorData = await response.json();
-        console.error('Force sync error:', errorData);
-        setSaveMessage('Sync failed: ' + (errorData.error || 'Unknown error'));
-        setSaveError(true);
-      }
-      
-      setTimeout(() => setSaveMessage(''), 5000);
-    } catch (error) {
-      console.error('Error in force sync:', error);
-      setSaveMessage('Error syncing subscription data');
-      setSaveError(true);
-      setTimeout(() => setSaveMessage(''), 3000);
-    }
-  };
+  // Removed force sync handler
 
   if (!shouldRender) return null;
 
@@ -756,14 +733,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
             <div>
               <h3 className="text-lg font-semibold text-white mb-4">Account</h3>
               <div className="space-y-2">
-                <button
-                  onClick={handleForceSync}
-                  className="w-full text-left rounded-lg p-3 bg-zinc-900/30 border border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                >
-                  <div className="text-white text-sm font-medium">Sync Subscriptions</div>
-                  <div className="text-zinc-400 text-xs">Force sync from Stripe</div>
-                </button>
-                
                 <button
                   onClick={() => setDeleteAccountModalOpen(true)}
                   className="w-full text-left rounded-lg p-3 bg-red-900/20 border border-red-800/50 hover:bg-red-900/30 transition-colors"
