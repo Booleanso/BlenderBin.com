@@ -423,9 +423,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
         if (response.data.newCustomer) {
           console.log('Created new BlenderBin Stripe customer');
         }
-        
-        // Open the Stripe Billing Portal in a new tab
-        window.open(response.data.url, '_blank');
+        // Use same-tab navigation on Safari to avoid popup blocking
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) {
+          window.location.href = response.data.url;
+        } else {
+          window.open(response.data.url, '_blank');
+        }
       } else if (response.data.redirectUrl) {
         // If there's no Stripe customer yet, redirect to upgrade page
         router.push(response.data.redirectUrl);
@@ -434,7 +438,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
         const loginUrl = user?.email 
           ? `${STRIPE_PORTAL_LOGIN_URL}?prefilled_email=${encodeURIComponent(user.email)}`
           : STRIPE_PORTAL_LOGIN_URL;
-        window.open(loginUrl, '_blank');
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) {
+          window.location.href = loginUrl;
+        } else {
+          window.open(loginUrl, '_blank');
+        }
       }
     } catch (error) {
       console.error('Error opening BlenderBin billing portal:', error);
@@ -443,7 +452,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user }) =>
         const loginUrl = user?.email 
           ? `${STRIPE_PORTAL_LOGIN_URL}?prefilled_email=${encodeURIComponent(user.email)}`
           : STRIPE_PORTAL_LOGIN_URL;
-        window.open(loginUrl, '_blank');
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) {
+          window.location.href = loginUrl;
+        } else {
+          window.open(loginUrl, '_blank');
+        }
       } catch {}
     } finally {
       setIsBlenderBinBillingLoading(false);
