@@ -30,15 +30,17 @@ async function hasExistingStripeSubscriptionForProduct(
 ): Promise<boolean> {
   const relevantPriceIds = BLENDERBIN_PRICE_IDS;
 
-  // Fetch up to 100 recent subscriptions and filter locally by status and price
+  // Fetch up to 100 recent subscriptions and filter locally by relevant statuses and price
   const subs = await stripe.subscriptions.list({
     customer: stripeCustomerId,
+    status: 'all',
     limit: 100
   });
 
+  const relevantStatuses = new Set(['trialing', 'active', 'incomplete', 'past_due', 'unpaid']);
+
   return subs.data.some((sub) => {
-    const isActiveOrTrial = sub.status === 'active' || sub.status === 'trialing';
-    if (!isActiveOrTrial) return false;
+    if (!relevantStatuses.has(sub.status)) return false;
     return sub.items.data.some((item) => relevantPriceIds.includes(item.price.id));
   });
 }
@@ -220,6 +222,42 @@ export async function POST(request: Request) {
       );
     }
 
+    // Acquire a short-lived checkout lock to prevent parallel session creation
+    const lockId = `${userId}:blenderbin`;
+    const lockRef = db.collection('checkout_locks').doc(lockId);
+    try {
+      await lockRef.create({
+        userId,
+        productType,
+        priceId,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes TTL
+        status: 'locked'
+      });
+    } catch (lockErr) {
+      // If a lock exists, try to reuse any recent open session instead of creating another
+      console.warn('Checkout lock exists; attempting to reuse recent session');
+      try {
+        const sessionsRef = db.collection('customers').doc(userId).collection('checkout_sessions');
+        const recent = await sessionsRef
+          .where('productType', '==', productType)
+          .where('status', '==', 'created')
+          .orderBy('created', 'desc')
+          .limit(1)
+          .get();
+        if (!recent.empty) {
+          const sessionId = recent.docs[0].id;
+          try {
+            const existing = await stripe.checkout.sessions.retrieve(sessionId);
+            if (existing && (existing.status === 'open' || (existing.status === 'complete' && (existing as any).url))) {
+              return NextResponse.json({ sessionId: existing.id, productType, url: (existing as any).url });
+            }
+          } catch {}
+        }
+      } catch {}
+      return NextResponse.json({ error: 'Checkout already in progress' }, { status: 409 });
+    }
+
     // Reuse an open Checkout Session if one exists to avoid duplicates
     try {
       const sessionsRef = db.collection('customers').doc(userId).collection('checkout_sessions');
@@ -316,7 +354,9 @@ export async function POST(request: Request) {
       }
     } as const;
 
-    const idempotencyKey = `checkout:${userId}:${productType}`;
+    // Version the idempotency key so changes to params are treated as new by Stripe
+    const IDEMPOTENCY_VERSION = 'v2';
+    const idempotencyKey = `checkout:${IDEMPOTENCY_VERSION}:${userId}:${productType}:${actualPriceId}:${trialEligible ? 'trial' : 'notrial'}`;
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     // Store checkout session info with product type
@@ -331,6 +371,11 @@ export async function POST(request: Request) {
     });
 
     console.log(`Created ${productType} checkout session ${session.id} for user ${userId}`);
+
+    // Mark lock with the session it created (lock naturally expires)
+    try {
+      await lockRef.set({ status: 'session_created', sessionId: session.id, updatedAt: new Date() }, { merge: true });
+    } catch {}
 
     return NextResponse.json({ sessionId: session.id, productType: productType });
   } catch (error: unknown) {
