@@ -11,17 +11,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     const sessionId = searchParams.get('session_id')
+    const tokenQueryParam = searchParams.get('token')
 
     if (!userId && !sessionId) {
       return new Response(JSON.stringify({ error: 'Authentication required. Please sign in or provide a valid session.' }), { status: 401 })
     }
 
     const authHeader = request.headers.get('Authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let token = ''
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    } else if (tokenQueryParam && tokenQueryParam.length > 50) {
+      // Safari fallback: token via query param
+      token = tokenQueryParam
+    }
+    if (!token) {
       return new Response(JSON.stringify({ error: 'Authentication token required for BlenderBin download.' }), { status: 401 })
     }
-
-    const token = authHeader.substring(7)
 
     // Ensure Firebase initialized and token valid
     const initialized = await autoInitializeFirebase()

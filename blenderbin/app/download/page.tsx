@@ -143,10 +143,8 @@ function DownloadContent() {
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         if (isSafari) {
           const base = typeof window !== 'undefined' ? window.location.origin : ''
-          const proxied = `${base}/api/download/file?userId=${encodeURIComponent(userId || '')}${sessionId ? `&session_id=${encodeURIComponent(sessionId)}` : ''}`
-          // Use the same Authorization header for the proxied request by opening directly
-          // Since we cannot set headers via window.location, encourage manual click fallback
-          // Prefer opening in the same tab
+          // Include token in query params for Safari since we can't set headers via location.href
+          const proxied = `${base}/api/download/file?userId=${encodeURIComponent(userId || '')}${sessionId ? `&session_id=${encodeURIComponent(sessionId)}` : ''}${token ? `&token=${encodeURIComponent(token)}` : ''}`
           window.location.href = proxied
         } else {
           window.location.href = data.downloadUrl;
